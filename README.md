@@ -1,1 +1,2 @@
-suppa duppa high level abstraction for a/b-testing
+proof of concept
+mid level routines for a/b experimenting
