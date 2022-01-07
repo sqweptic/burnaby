@@ -20,7 +20,7 @@ class ABManager:
         uniq_id_col,
         control_group_name = '',
         data_cols = None
-    ) -> None:
+    ):
         self.name = ab_test_name
         self.group_col = group_col
         self.timeseries_col = timeseries_col
@@ -116,5 +116,5 @@ class ABManager:
                 alpha=0.2
             )
 
-    def __repr__(self) -> str:
+    def __repr__(self):
         return self.name
