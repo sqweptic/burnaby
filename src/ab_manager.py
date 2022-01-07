@@ -61,9 +61,9 @@ class ABManager:
     ):
         df = self.ab_df\
             .groupby(self.uniq_id_grouping_cols, as_index=False)[value_col]\
-            .sum()
-
-        df['metric'] = df[value_col].mean()
+            .sum()\
+            .groupby(self.timeseries_grouping_cols, as_index=False)\
+            .agg(metric = (value_col, 'mean'))
 
         display(df)
 
