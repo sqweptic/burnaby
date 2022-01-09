@@ -1,6 +1,3 @@
-import hashlib
-from itertools import combinations
-
 from IPython.display import display
 from scipy.stats import ttest_ind
 from statsmodels.stats.proportion import proportions_chisquare
@@ -11,7 +8,7 @@ from ab_consts import STAT_TEST_TTEST, STAT_TEST_TTEST_WELSH
 class Hypothesis:
     @staticmethod
     def generate_hypothesis_name(hypothesys_name, value_col = '', nom_col = '', den_col = ''):
-        return hypothesys_name + nom_col + den_col + value_col
+        return ' '.join([hypothesys_name, nom_col, den_col, value_col])
 
     def __init__(
         self,
@@ -31,39 +28,51 @@ class Hypothesis:
         self.stat_test = stat_test
         self.group_col = group_col
         self.control_group_name = control_group_name
-        print(combined_groups)
         self.combined_groups = combined_groups
 
         self.groups_hypothesis = {}
 
-    def test(self, h_df, stat_test):
-        display(h_df)
-
+    def test(self, h_df, stat_test, save_testing=True):
         if len(self.combined_groups.keys()) == 0:
-            display('error')
+            raise ValueError('groups combination are not set')
             return
 
-        display('here1', self.combined_groups)
+        _groups_hypothesis = {}
         for combination_name, groups_combination in self.combined_groups.items():
-            display('here', self.group_col, groups_combination['control'])
-            display(h_df[self.group_col])
-
             control_df = h_df[h_df[self.group_col] == groups_combination['control']]
             test_df = h_df[h_df[self.group_col] == groups_combination['test']]
 
             if stat_test == STAT_TEST_CHISQUARE:
+                display(control_df.append(test_df)[[self.group_col, self.nom_col, self.den_col]])
                 _, pvalue, _ = proportions_chisquare(
                     [control_df[self.nom_col].iloc[0], test_df[self.nom_col].iloc[0]],
                     [control_df[self.den_col].iloc[0], test_df[self.den_col].iloc[0]]
                 )
 
-                self.groups_hypothesis[combination_name] = pvalue
+                _groups_hypothesis[combination_name] = pvalue
 
             elif stat_test in (STAT_TEST_TTEST, STAT_TEST_TTEST_WELSH):
-                _, pvalue = ttest_ind(control_df[self.value_col], test_df[self.value_col])
+                if control_df[self.value_col].shape[0] > 1 and test_df[self.value_col].shape[0] > 1:
+                    _, pvalue = ttest_ind(
+                        control_df[self.value_col],
+                        test_df[self.value_col],
+                        equal_var=stat_test == STAT_TEST_TTEST
+                    )
 
-                self.groups_hypothesis[combination_name] = pvalue
-            else:
-                self.groups_hypothesis[combination_name] = None
+                    _groups_hypothesis[combination_name] = pvalue
+                else:
+                    display(
+                        'not enough data to test "' +
+                        Hypothesis.generate_hypothesis_name(self.name, self.value_col) +
+                        '" hypothesis in groups ' +
+                        combination_name
+                    )
 
-        display(self.groups_hypothesis)
+            if combination_name not in self.groups_hypothesis:
+                _groups_hypothesis[combination_name] = None
+
+        if save_testing:
+            self.groups_hypothesis = _groups_hypothesis
+            display(self.groups_hypothesis)
+
+        return _groups_hypothesis

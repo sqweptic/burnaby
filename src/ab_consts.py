@@ -3,7 +3,10 @@ MERTIC_COL_NAME = 'metric'
 DEFAULT_GROUP_NAMES = [
     'A',
     'a',
+    '0',
+    0,
     '1',
+    1,
     'first'
 ]
 

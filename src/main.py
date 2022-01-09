@@ -10,7 +10,7 @@ def set_ab_test(
     group_col,
     date_col,
     uniq_id_col,
-    control_group_name = '',
+    control_group_name = None,
     data_cols = None
 ):
     _managers[ab_test_name] = ABManager(

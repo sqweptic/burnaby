@@ -30,13 +30,19 @@ class ABManager:
         self.timeseries_col = timeseries_col
         self.uniq_id_col = uniq_id_col
 
-        if control_group_name is None:
-            self.control_group_name = control_group_name
+        available_groups = np.sort(ab_df[group_col].unique())
+
+        self.control_group_name = None
+        if control_group_name is not None:
+            if control_group_name in available_groups:
+                self.control_group_name = control_group_name
         else:
-            try:
-                self.control_group_name = np.setdiff1d(ab_df[group_col].unique(), DEFAULT_GROUP_NAMES)[0]
-            except IndexError:
-                display('control group is not defined')
+            for group_in_ab_data in available_groups:
+                if group_in_ab_data in DEFAULT_GROUP_NAMES:
+                    self.control_group_name = group_in_ab_data
+
+        if self.control_group_name is None:
+            raise ValueError('control group name is undefined or not in dataframe')
 
         self.uniq_id_grouping_cols = [group_col, timeseries_col, uniq_id_col]
         self.timeseries_grouping_cols = [group_col, timeseries_col]
@@ -55,15 +61,13 @@ class ABManager:
     def _pair_groups(self, h_df):
         combined_groups = {}
         for group in np.sort(h_df[self.group_col].unique()):
-            display(group)
-            if group == self.control_group_name:
+            if not group or group == self.control_group_name:
                 continue
-            display(self.control_group_name, group)
+
             combined_groups[str(self.control_group_name) + '-' + str(group)] = {
                 'control': self.control_group_name,
                 'test': group
             }
-        display(combined_groups)
 
         return combined_groups
 
@@ -112,7 +116,8 @@ class ABManager:
         else:
             hypothesis_df = hypothesis_df[~hypothesis_df[value_col].isna()]
 
-        hypothesis_df = hypothesis_df.groupby(self.uniq_id_grouping_cols, as_index=False)[value_col]\
+        hypothesis_df = hypothesis_df\
+            .groupby(self.uniq_id_grouping_cols, as_index=False)[value_col]\
             .sum()
         hypothesis_df
         timeseries_df = hypothesis_df\
@@ -156,8 +161,8 @@ class ABManager:
             })
         else:
             timeseries_df = self.ab_df.groupby(self.timeseries_grouping_cols, as_index=False)[[nominator, denominator]].agg({
-                nominator: lambda x: x[x > 0].shape[0] if (x > 0).any() else 0,
-                denominator: lambda x: x[x > 0].shape[0] if (x > 0).any() else 0
+                nominator: lambda x: sum(x) if (x > 0).any() else 0,
+                denominator: lambda x: sum(x) if (x > 0).any() else 0
             })
 
         timeseries_df[MERTIC_COL_NAME] = timeseries_df[nominator] / timeseries_df[denominator]
