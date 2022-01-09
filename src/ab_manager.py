@@ -8,6 +8,11 @@ from ab_hypothesis import Hypothesis
 from ab_consts import METRIC_COL_NAME
 from ab_consts import DEFAULT_GROUP_NAMES
 from ab_consts import DEFAULT_ALPHA
+from ab_consts import H_CONTROL_GROUP_KEY
+from ab_consts import H_PVALUE_KEY
+from ab_consts import H_SIGNIFICANCE_KEY
+from ab_consts import H_SIGNIFICANCE_LEVEL_KEY
+from ab_consts import H_TEST_GROUP_KEY
 
 
 VALIDATION_TYPE__GROUPS_PER_UNIQ_ID = 'groups_per_uniq_id'
@@ -213,22 +218,23 @@ class ABManager:
             control_metric_set = False
 
             for ch in h.get_combined_hypothesis():
-                if not ch or np.isnan(ch['test']):
+                if not ch or np.isnan(ch[H_TEST_GROUP_KEY]):
                     h_data.append(np.NaN)
                     significances.append(np.NaN)
                     continue
 
                 if not control_metric_set:
-                    h_data.append(round(ch['control'], 3))
+                    h_data.append(round(ch[H_CONTROL_GROUP_KEY], 3))
                     control_metric_set = True
 
-                uplift = ch['test'] / ch['control'] * 100 - 100
+                uplift = ch[H_TEST_GROUP_KEY] / ch[H_CONTROL_GROUP_KEY] * 100 - 100
                 sign = '+' if uplift >= 0 else '-'
 
-                group_comb_res = str(round(ch['test'], 3)) + ' ({sign}{uplift:.2f}%)'.format(sign=sign, uplift=uplift)
+                group_comb_res = str(round(ch[H_TEST_GROUP_KEY], 3))\
+                    + ' ({sign}{uplift:.2f}%)'.format(sign=sign, uplift=uplift)
                 h_data.append(group_comb_res)
 
-                significances.append('+ (H0 rejected)' if ch['significance'] else '- (H0 accepted)')
+                significances.append('+ (H0 rejected)' if ch[H_SIGNIFICANCE_KEY] else '- (H0 accepted)')
 
             all_hypothesis_data.append(h_data + significances)
 
@@ -250,7 +256,7 @@ class ABManager:
             pd.DataFrame(
                 all_hypothesis_data,
                 columns=columns+sign_columns
-            )
+            ).set_index('metrics')
         )
 
     def __repr__(self):

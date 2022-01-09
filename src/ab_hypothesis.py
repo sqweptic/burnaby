@@ -8,6 +8,11 @@ from ab_consts import STAT_TEST_CHISQUARE
 from ab_consts import STAT_TEST_TTEST
 from ab_consts import STAT_TEST_TTEST_WELSH
 from ab_consts import DEFAULT_ALPHA
+from ab_consts import H_CONTROL_GROUP_KEY
+from ab_consts import H_PVALUE_KEY
+from ab_consts import H_SIGNIFICANCE_KEY
+from ab_consts import H_SIGNIFICANCE_LEVEL_KEY
+from ab_consts import H_TEST_GROUP_KEY
 
 
 class Hypothesis:
@@ -54,11 +59,11 @@ class Hypothesis:
                 )
 
                 _groups_hypothesis[combination_name] = {
-                    'pvalue': pvalue,
-                    'control': (control_df[self.nom_col] / control_df[self.den_col]).iloc[0],
-                    'test': (test_df[self.nom_col] / test_df[self.den_col]).iloc[0],
-                    'sig_level': significance_level,
-                    'significance': pvalue < significance_level
+                    H_PVALUE_KEY: pvalue,
+                    H_CONTROL_GROUP_KEY: (control_df[self.nom_col] / control_df[self.den_col]).iloc[0],
+                    H_TEST_GROUP_KEY: (test_df[self.nom_col] / test_df[self.den_col]).iloc[0],
+                    H_SIGNIFICANCE_LEVEL_KEY: significance_level,
+                    H_SIGNIFICANCE_KEY: pvalue < significance_level
                 }
 
             elif stat_test in (STAT_TEST_TTEST, STAT_TEST_TTEST_WELSH):
@@ -70,11 +75,11 @@ class Hypothesis:
                     )
 
                     _groups_hypothesis[combination_name] = {
-                        'pvalue': pvalue,
-                        'control': control_df[self.value_col].mean(),
-                        'test': test_df[self.value_col].mean(),
-                        'sig_level': significance_level,
-                        'significance': pvalue < significance_level
+                        H_PVALUE_KEY: pvalue,
+                        H_CONTROL_GROUP_KEY: control_df[self.value_col].mean(),
+                        H_TEST_GROUP_KEY: test_df[self.value_col].mean(),
+                        H_SIGNIFICANCE_LEVEL_KEY: significance_level,
+                        H_SIGNIFICANCE_KEY: pvalue < significance_level
                     }
                 else:
                     display(
@@ -85,11 +90,11 @@ class Hypothesis:
                     )
 
                     _groups_hypothesis[combination_name] = {
-                        'pvalue': np.NaN,
-                        'control': np.NaN,
-                        'test': np.NaN,
-                        'sig_level': significance_level,
-                        'significance': False
+                        H_PVALUE_KEY: np.NaN,
+                        H_CONTROL_GROUP_KEY: np.NaN,
+                        H_TEST_GROUP_KEY: np.NaN,
+                        H_SIGNIFICANCE_LEVEL_KEY: significance_level,
+                        H_SIGNIFICANCE_KEY: False
                     }
 
             if combination_name not in _groups_hypothesis:
