@@ -34,7 +34,7 @@ def validate_ab_test_data(
             validators
         )
 
-def test_hypothesis_rational(
+def test_hypothesis_relational(
     ab_test_name,
     nominator,
     denominator,
@@ -42,10 +42,11 @@ def test_hypothesis_rational(
     description=None,
     uniq_id_rel=True
 ):
-    display('test_hypothesis_rational')
+    display('test_hypothesis_relational')
     display(_managers)
+
     if ab_test_name in _managers:
-        _managers[ab_test_name].test_hypothesis_rational(
+        _managers[ab_test_name].test_hypothesis_relational(
             nominator,
             denominator,
             stat_test,
@@ -53,7 +54,7 @@ def test_hypothesis_rational(
             uniq_id_rel
         )
     else:
-        display('no such ab test')
+        display('no such ab test', ab_test_name)
 
 def test_hypothesis_continuous(
     ab_test_name,
@@ -69,7 +70,7 @@ def test_hypothesis_continuous(
             description
         )
     else:
-        display('no such ab test')
+        display('no such ab test', ab_test_name)
 
 def print_statistical_report(ab_test_name):
     display('print_statistical_report')
