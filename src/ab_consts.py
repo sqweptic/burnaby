@@ -1,4 +1,4 @@
-MERTIC_COL_NAME = 'metric'
+METRIC_COL_NAME = 'metric'
 
 DEFAULT_GROUP_NAMES = [
     'A',
@@ -9,6 +9,8 @@ DEFAULT_GROUP_NAMES = [
     1,
     'first'
 ]
+
+DEFAULT_ALPHA = 0.05
 
 STAT_TEST_CHISQUARE = 'chisquare'
 STAT_TEST_TTEST = 'ttest'

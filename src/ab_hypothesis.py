@@ -1,9 +1,14 @@
+from itertools import combinations
+import numpy as np
 from IPython.display import display
 from scipy.stats import ttest_ind
 from statsmodels.stats.proportion import proportions_chisquare
 
 from ab_consts import STAT_TEST_CHISQUARE
-from ab_consts import STAT_TEST_TTEST, STAT_TEST_TTEST_WELSH
+from ab_consts import STAT_TEST_TTEST
+from ab_consts import STAT_TEST_TTEST_WELSH
+from ab_consts import DEFAULT_ALPHA
+
 
 class Hypothesis:
     @staticmethod
@@ -32,24 +37,29 @@ class Hypothesis:
 
         self.groups_hypothesis = {}
 
-    def test(self, h_df, stat_test, save_testing=True):
+    def test(self, h_df, stat_test, save_testing=True, significance_level=DEFAULT_ALPHA):
         if len(self.combined_groups.keys()) == 0:
             raise ValueError('groups combination are not set')
-            return
 
         _groups_hypothesis = {}
+        control_df = h_df[h_df[self.group_col] == self.control_group_name]
+
         for combination_name, groups_combination in self.combined_groups.items():
-            control_df = h_df[h_df[self.group_col] == groups_combination['control']]
             test_df = h_df[h_df[self.group_col] == groups_combination['test']]
 
             if stat_test == STAT_TEST_CHISQUARE:
-                display(control_df.append(test_df)[[self.group_col, self.nom_col, self.den_col]])
                 _, pvalue, _ = proportions_chisquare(
                     [control_df[self.nom_col].iloc[0], test_df[self.nom_col].iloc[0]],
                     [control_df[self.den_col].iloc[0], test_df[self.den_col].iloc[0]]
                 )
 
-                _groups_hypothesis[combination_name] = pvalue
+                _groups_hypothesis[combination_name] = {
+                    'pvalue': pvalue,
+                    'control': (control_df[self.nom_col] / control_df[self.den_col]).iloc[0],
+                    'test': (test_df[self.nom_col] / test_df[self.den_col]).iloc[0],
+                    'sig_level': significance_level,
+                    'significance': pvalue < significance_level
+                }
 
             elif stat_test in (STAT_TEST_TTEST, STAT_TEST_TTEST_WELSH):
                 if control_df[self.value_col].shape[0] > 1 and test_df[self.value_col].shape[0] > 1:
@@ -59,7 +69,13 @@ class Hypothesis:
                         equal_var=stat_test == STAT_TEST_TTEST
                     )
 
-                    _groups_hypothesis[combination_name] = pvalue
+                    _groups_hypothesis[combination_name] = {
+                        'pvalue': pvalue,
+                        'control': control_df[self.value_col].mean(),
+                        'test': test_df[self.value_col].mean(),
+                        'sig_level': significance_level,
+                        'significance': pvalue < significance_level
+                    }
                 else:
                     display(
                         'not enough data to test "' +
@@ -68,11 +84,24 @@ class Hypothesis:
                         combination_name
                     )
 
-            if combination_name not in self.groups_hypothesis:
+                    _groups_hypothesis[combination_name] = {
+                        'pvalue': np.NaN,
+                        'control': np.NaN,
+                        'test': np.NaN,
+                        'sig_level': significance_level,
+                        'significance': False
+                    }
+
+            if combination_name not in _groups_hypothesis:
                 _groups_hypothesis[combination_name] = None
 
         if save_testing:
             self.groups_hypothesis = _groups_hypothesis
-            display(self.groups_hypothesis)
 
         return _groups_hypothesis
+
+    def get_name(self):
+        return self.name
+
+    def get_combined_hypothesis(self):
+        return self.groups_hypothesis.values()

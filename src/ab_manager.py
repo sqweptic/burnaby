@@ -5,8 +5,9 @@ import seaborn as sns
 from IPython.display import display
 
 from ab_hypothesis import Hypothesis
-from ab_consts import MERTIC_COL_NAME
+from ab_consts import METRIC_COL_NAME
 from ab_consts import DEFAULT_GROUP_NAMES
+from ab_consts import DEFAULT_ALPHA
 
 
 VALIDATION_TYPE__GROUPS_PER_UNIQ_ID = 'groups_per_uniq_id'
@@ -30,14 +31,14 @@ class ABManager:
         self.timeseries_col = timeseries_col
         self.uniq_id_col = uniq_id_col
 
-        available_groups = np.sort(ab_df[group_col].unique())
+        self.available_groups = np.sort(ab_df[group_col].unique())
 
         self.control_group_name = None
         if control_group_name is not None:
-            if control_group_name in available_groups:
+            if control_group_name in self.available_groups:
                 self.control_group_name = control_group_name
         else:
-            for group_in_ab_data in available_groups:
+            for group_in_ab_data in self.available_groups:
                 if group_in_ab_data in DEFAULT_GROUP_NAMES:
                     self.control_group_name = group_in_ab_data
 
@@ -92,7 +93,8 @@ class ABManager:
         value_col,
         stat_test,
         description,
-        na_is_zero=True
+        na_is_zero=True,
+        significance_level=DEFAULT_ALPHA
     ):
         h_name = Hypothesis.generate_hypothesis_name(description, value_col=value_col)
 
@@ -126,9 +128,9 @@ class ABManager:
 
         display(timeseries_df)
 
-        self._draw_metrics_chart_by_timeline(timeseries_df, MERTIC_COL_NAME, description)
+        self._draw_metrics_chart_by_timeline(timeseries_df, METRIC_COL_NAME, description)
 
-        h.test(hypothesis_df, stat_test)
+        h.test(hypothesis_df, stat_test, save_testing=True, significance_level=significance_level)
 
     def test_hypothesis_relational(
         self,
@@ -136,7 +138,8 @@ class ABManager:
         denominator,
         stat_test,
         description,
-        uniq_id_rel = False
+        uniq_id_rel = False,
+        significance_level=DEFAULT_ALPHA
     ):
         h_name = Hypothesis.generate_hypothesis_name(description, nom_col=nominator, den_col=denominator)
 
@@ -165,15 +168,15 @@ class ABManager:
                 denominator: lambda x: sum(x) if (x > 0).any() else 0
             })
 
-        timeseries_df[MERTIC_COL_NAME] = timeseries_df[nominator] / timeseries_df[denominator]
+        timeseries_df[METRIC_COL_NAME] = timeseries_df[nominator] / timeseries_df[denominator]
 
         display(timeseries_df)
 
-        self._draw_metrics_chart_by_timeline(timeseries_df, MERTIC_COL_NAME, description)
+        self._draw_metrics_chart_by_timeline(timeseries_df, METRIC_COL_NAME, description)
 
         hypothesis_df = timeseries_df.groupby(self.group_col, as_index=False).sum()
 
-        h.test(hypothesis_df, stat_test)
+        h.test(hypothesis_df, stat_test, save_testing=True, significance_level=significance_level)
 
     def _draw_metrics_chart_by_timeline(self, df, feature_col, name):
         plt = sns.lineplot(
@@ -199,6 +202,56 @@ class ABManager:
                 color='green',
                 alpha=0.2
             )
+
+    def print_statistical_report(self):
+        all_hypothesis_data = []
+        for h in self._hypothesis.values():
+            h_data = [
+                h.get_name()
+            ]
+            significances = []
+            control_metric_set = False
+
+            for ch in h.get_combined_hypothesis():
+                if not ch or np.isnan(ch['test']):
+                    h_data.append(np.NaN)
+                    significances.append(np.NaN)
+                    continue
+
+                if not control_metric_set:
+                    h_data.append(round(ch['control'], 3))
+                    control_metric_set = True
+
+                uplift = ch['test'] / ch['control'] * 100 - 100
+                sign = '+' if uplift >= 0 else '-'
+
+                group_comb_res = str(round(ch['test'], 3)) + ' ({sign}{uplift:.2f}%)'.format(sign=sign, uplift=uplift)
+                h_data.append(group_comb_res)
+
+                significances.append('+ (H0 rejected)' if ch['significance'] else '- (H0 accepted)')
+
+            all_hypothesis_data.append(h_data + significances)
+
+        columns = ['metrics', self.control_group_name]
+        sign_columns = []
+
+        for group in self.available_groups:
+            if group == self.control_group_name:
+                continue
+
+            columns.append(group)
+            sign_col_name = 'group {control_group}-{group} sign.'.format(
+                control_group=self.control_group_name,
+                group=group
+            )
+            sign_columns.append(sign_col_name)
+
+        display(
+            pd.DataFrame(
+                all_hypothesis_data,
+                columns=columns+sign_columns
+            )
+        )
 
     def __repr__(self):
         return self.name
