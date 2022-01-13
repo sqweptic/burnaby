@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 import seaborn as sns
 
+from statsmodels.stats.multitest import multipletests
+
 from IPython.display import display
 
 from ab_hypothesis import Hypothesis
@@ -48,7 +50,9 @@ class ABManager:
                     self.control_group_name = group_in_ab_data
 
         if self.control_group_name is None:
-            raise ValueError('control group name is undefined or not in dataframe')
+            raise ValueError(
+                'control group name is undefined or not in dataframe'
+            )
 
         self.uniq_id_grouping_cols = [group_col, timeseries_col, uniq_id_col]
         self.timeseries_grouping_cols = [group_col, timeseries_col]
@@ -59,7 +63,12 @@ class ABManager:
                 self.uniq_id_grouping_cols
             )
 
-        self.ab_df = ab_df.groupby(self.uniq_id_grouping_cols, as_index=False)[data_cols].sum()
+        self.ab_df = ab_df\
+            .groupby(
+                self.uniq_id_grouping_cols,
+                as_index=False
+            )[data_cols]\
+            .sum()
 
         self._hypothesis = {}
         self._combined_groups = self._pair_groups(ab_df)
@@ -70,7 +79,8 @@ class ABManager:
             if not group or group == self.control_group_name:
                 continue
 
-            combined_groups[str(self.control_group_name) + '-' + str(group)] = {
+            combination_name = str(self.control_group_name) + '-' + str(group)
+            combined_groups[combination_name] = {
                 'control': self.control_group_name,
                 'test': group
             }
@@ -99,9 +109,13 @@ class ABManager:
         stat_test,
         description,
         na_is_zero=True,
-        significance_level=DEFAULT_ALPHA
+        significance_level=DEFAULT_ALPHA,
+        silent=False
     ):
-        h_name = Hypothesis.generate_hypothesis_name(description, value_col=value_col)
+        h_name = Hypothesis.generate_hypothesis_name(
+            description,
+            value_col=value_col
+        )
 
         if h_name in self._hypothesis:
             h = self._hypothesis[h_name]
@@ -126,16 +140,26 @@ class ABManager:
         hypothesis_df = hypothesis_df\
             .groupby(self.uniq_id_grouping_cols, as_index=False)[value_col]\
             .sum()
-        hypothesis_df
-        timeseries_df = hypothesis_df\
-            .groupby(self.timeseries_grouping_cols, as_index=False)\
-            .agg(metric = (value_col, 'mean'))
 
-        display(timeseries_df)
+        if silent:
+            timeseries_df = hypothesis_df\
+                .groupby(self.timeseries_grouping_cols, as_index=False)\
+                .agg(metric = (value_col, 'mean'))
 
-        self._draw_metrics_chart_by_timeline(timeseries_df, METRIC_COL_NAME, description)
+            display(timeseries_df)
 
-        h.test(hypothesis_df, stat_test, save_testing=True, significance_level=significance_level)
+            self._draw_metrics_chart_by_timeline(
+                timeseries_df,
+                METRIC_COL_NAME,
+                description
+            )
+
+        h.test(
+            hypothesis_df,
+            stat_test,
+            save_testing=True,
+            significance_level=significance_level
+        )
 
     def test_hypothesis_relational(
         self,
@@ -144,9 +168,14 @@ class ABManager:
         stat_test,
         description,
         uniq_id_rel = False,
-        significance_level=DEFAULT_ALPHA
+        significance_level=DEFAULT_ALPHA,
+        silent=False
     ):
-        h_name = Hypothesis.generate_hypothesis_name(description, nom_col=nominator, den_col=denominator)
+        h_name = Hypothesis.generate_hypothesis_name(
+            description,
+            nom_col=nominator,
+            den_col=denominator
+        )
 
         if h_name in self._hypothesis:
             h = self._hypothesis[h_name]
@@ -163,25 +192,48 @@ class ABManager:
             self._hypothesis[h_name] = h
 
         if uniq_id_rel:
-            timeseries_df = self.ab_df.groupby(self.timeseries_grouping_cols, as_index=False)[[nominator, denominator]].agg({
-                nominator: lambda x: 1 if (x > 0).any() else 0,
-                denominator: lambda x: 1 if (x > 0).any() else 0
-            })
+            timeseries_df = self.ab_df\
+                .groupby(
+                    self.timeseries_grouping_cols,
+                    as_index=False
+                )[[nominator, denominator]]\
+                .agg({
+                    nominator: lambda x: 1 if (x > 0).any() else 0,
+                    denominator: lambda x: 1 if (x > 0).any() else 0
+                })
         else:
-            timeseries_df = self.ab_df.groupby(self.timeseries_grouping_cols, as_index=False)[[nominator, denominator]].agg({
-                nominator: lambda x: sum(x) if (x > 0).any() else 0,
-                denominator: lambda x: sum(x) if (x > 0).any() else 0
-            })
+            timeseries_df = self.ab_df\
+                .groupby(
+                    self.timeseries_grouping_cols,
+                    as_index=False
+                )[[nominator, denominator]]\
+                .agg({
+                    nominator: lambda x: sum(x) if (x > 0).any() else 0,
+                    denominator: lambda x: sum(x) if (x > 0).any() else 0
+                })
 
-        timeseries_df[METRIC_COL_NAME] = timeseries_df[nominator] / timeseries_df[denominator]
+        timeseries_df[METRIC_COL_NAME] = \
+            timeseries_df[nominator] / timeseries_df[denominator]
 
-        display(timeseries_df)
+        if silent:
+            display(timeseries_df)
 
-        self._draw_metrics_chart_by_timeline(timeseries_df, METRIC_COL_NAME, description)
+            self._draw_metrics_chart_by_timeline(
+                timeseries_df,
+                METRIC_COL_NAME,
+                description
+            )
 
-        hypothesis_df = timeseries_df.groupby(self.group_col, as_index=False).sum()
+        hypothesis_df = timeseries_df\
+            .groupby(self.group_col, as_index=False)\
+            .sum()
 
-        h.test(hypothesis_df, stat_test, save_testing=True, significance_level=significance_level)
+        h.test(
+            hypothesis_df,
+            stat_test,
+            save_testing=True,
+            significance_level=significance_level
+        )
 
     def _draw_metrics_chart_by_timeline(self, df, feature_col, name):
         plt = sns.lineplot(
@@ -196,7 +248,13 @@ class ABManager:
 
         return plt
 
-    def _draw_metrics_chart_by_timeline_and_fill_between(self, df, feature_col, name, **kwargs):
+    def _draw_metrics_chart_by_timeline_and_fill_between(
+        self,
+        df,
+        feature_col,
+        name,
+        **kwargs
+    ):
         plt = self._draw_metrics_chart_by_timeline(df, feature_col, name)
 
         if 'fill_between_x' in kwargs:
@@ -208,7 +266,11 @@ class ABManager:
                 alpha=0.2
             )
 
-    def print_statistical_report(self):
+    def print_statistical_report(self, correction_method='holm'):
+        self.print_metrics_report()
+        self.print_multiple_testing_report(correction_method)
+
+    def print_metrics_report(self):
         all_hypothesis_data = []
         for h in self._hypothesis.values():
             h_data = [
@@ -217,7 +279,7 @@ class ABManager:
             significances = []
             control_metric_set = False
 
-            for ch in h.get_combined_hypothesis():
+            for _, ch in h.get_combined_hypothesis().items():
                 if not ch or np.isnan(ch[H_TEST_GROUP_KEY]):
                     h_data.append(np.NaN)
                     significances.append(np.NaN)
@@ -227,14 +289,19 @@ class ABManager:
                     h_data.append(round(ch[H_CONTROL_GROUP_KEY], 3))
                     control_metric_set = True
 
-                uplift = ch[H_TEST_GROUP_KEY] / ch[H_CONTROL_GROUP_KEY] * 100 - 100
-                sign = '+' if uplift >= 0 else '-'
+                uplift = \
+                    ch[H_TEST_GROUP_KEY] / ch[H_CONTROL_GROUP_KEY] * 100 - 100
+                sign = '+' if uplift >= 0 else ''
 
                 group_comb_res = str(round(ch[H_TEST_GROUP_KEY], 3))\
                     + ' ({sign}{uplift:.2f}%)'.format(sign=sign, uplift=uplift)
                 h_data.append(group_comb_res)
 
-                significances.append('+ (H0 rejected)' if ch[H_SIGNIFICANCE_KEY] else '- (H0 accepted)')
+                significances.append(
+                    '+ (H0 rejected)'
+                        if ch[H_SIGNIFICANCE_KEY]
+                        else '- (H0 accepted)'
+                )
 
             all_hypothesis_data.append(h_data + significances)
 
@@ -257,6 +324,43 @@ class ABManager:
                 all_hypothesis_data,
                 columns=columns+sign_columns
             ).set_index('metrics')
+        )
+
+    def print_multiple_testing_report(self, method='holm'):
+        h_i = 0
+        h_dict = {}
+        pvalues_list = []
+        for h in self._hypothesis.values():
+            for ch_name, ch in h.get_combined_hypothesis().items():
+                if not ch or np.isnan(ch[H_TEST_GROUP_KEY]):
+                    continue
+
+                pvalues_list.append(ch[H_PVALUE_KEY])
+
+                h_dict[h_i] = {
+                    'metric': h.get_name(),
+                    'combination': ch_name
+                }
+
+                h_i += 1
+
+        _, corrected_pvalues_list, _, _ = \
+            multipletests(pvalues_list, method=method)
+
+        h_df = pd.DataFrame()
+        corr_h_df = pd.DataFrame()
+
+        for i, h_params in h_dict.items():
+            pval_col = 'pval. ' + h_params['combination']
+            corr_pval_col = 'corrected pval. ' + h_params['combination']
+
+            h_df.loc[h_params['metric'], pval_col] = round(pvalues_list[i], 3)
+            corr_h_df.loc[h_params['metric'], corr_pval_col] = \
+                round(corrected_pvalues_list[i], 3)
+
+        display(
+            method.capitalize() + ' miltiple testing correction is applied',
+            h_df.join(corr_h_df)
         )
 
     def __repr__(self):

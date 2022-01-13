@@ -1,4 +1,3 @@
-from itertools import combinations
 import numpy as np
 from IPython.display import display
 from scipy.stats import ttest_ind
@@ -17,7 +16,12 @@ from ab_consts import H_TEST_GROUP_KEY
 
 class Hypothesis:
     @staticmethod
-    def generate_hypothesis_name(hypothesys_name, value_col = '', nom_col = '', den_col = ''):
+    def generate_hypothesis_name(
+        hypothesys_name,
+        value_col = '',
+        nom_col = '',
+        den_col = ''
+    ):
         return ' '.join([hypothesys_name, nom_col, den_col, value_col])
 
     def __init__(
@@ -42,7 +46,13 @@ class Hypothesis:
 
         self.groups_hypothesis = {}
 
-    def test(self, h_df, stat_test, save_testing=True, significance_level=DEFAULT_ALPHA):
+    def test(
+        self,
+        h_df,
+        stat_test,
+        save_testing=True,
+        significance_level=DEFAULT_ALPHA
+    ):
         if len(self.combined_groups.keys()) == 0:
             raise ValueError('groups combination are not set')
 
@@ -54,20 +64,31 @@ class Hypothesis:
 
             if stat_test == STAT_TEST_CHISQUARE:
                 _, pvalue, _ = proportions_chisquare(
-                    [control_df[self.nom_col].iloc[0], test_df[self.nom_col].iloc[0]],
-                    [control_df[self.den_col].iloc[0], test_df[self.den_col].iloc[0]]
+                    [
+                        control_df[self.nom_col].values[0],
+                        test_df[self.nom_col].values[0]
+                    ],
+                    [
+                        control_df[self.den_col].values[0],
+                        test_df[self.den_col].values[0]
+                    ]
                 )
 
                 _groups_hypothesis[combination_name] = {
                     H_PVALUE_KEY: pvalue,
-                    H_CONTROL_GROUP_KEY: (control_df[self.nom_col] / control_df[self.den_col]).iloc[0],
-                    H_TEST_GROUP_KEY: (test_df[self.nom_col] / test_df[self.den_col]).iloc[0],
+                    H_CONTROL_GROUP_KEY:
+                        (control_df[self.nom_col] / control_df[self.den_col])\
+                            .values[0],
+                    H_TEST_GROUP_KEY:
+                        (test_df[self.nom_col] / test_df[self.den_col])\
+                            .values[0],
                     H_SIGNIFICANCE_LEVEL_KEY: significance_level,
                     H_SIGNIFICANCE_KEY: pvalue < significance_level
                 }
 
             elif stat_test in (STAT_TEST_TTEST, STAT_TEST_TTEST_WELSH):
-                if control_df[self.value_col].shape[0] > 1 and test_df[self.value_col].shape[0] > 1:
+                if control_df[self.value_col].shape[0] > 1\
+                and test_df[self.value_col].shape[0] > 1:
                     _, pvalue = ttest_ind(
                         control_df[self.value_col],
                         test_df[self.value_col],
@@ -84,7 +105,10 @@ class Hypothesis:
                 else:
                     display(
                         'not enough data to test "' +
-                        Hypothesis.generate_hypothesis_name(self.name, self.value_col) +
+                        Hypothesis.generate_hypothesis_name(
+                            self.name,
+                            self.value_col
+                        ) +
                         '" hypothesis in groups ' +
                         combination_name
                     )
@@ -109,4 +133,4 @@ class Hypothesis:
         return self.name
 
     def get_combined_hypothesis(self):
-        return self.groups_hypothesis.values()
+        return self.groups_hypothesis
