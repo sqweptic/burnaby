@@ -76,14 +76,11 @@ def test_hypothesis_continuous(
     else:
         display('no such ab test', ab_test_name)
 
-def print_statistical_report(ab_test_name):
-    display('print_statistical_report')
-
+def print_statistical_report(ab_test_name, correction_method='holm'):
     if ab_test_name in _managers:
-        _managers[ab_test_name].print_statistical_report()
+        _managers[ab_test_name].print_statistical_report(correction_method)
     else:
         display('no such ab test', ab_test_name)
-
 
 def save_report_to_html(ab_test_name):
     display('save_report_to_html')
