@@ -1,27 +1,29 @@
 from IPython.display import display
 
 from ab_manager import ABManager, _ALL_VALIDATORS
-from ab_consts import DEFAULT_ALPHA
+
 
 _managers = {}
 
 def set_ab_test(
     ab_test_name,
     dataframe,
-    group_col,
+    abgroup_col,
     date_col,
     uniq_id_col,
-    control_group_name = None,
-    data_cols = None
+    control_group_name=None,
+    data_cols=None,
+    significance_level=None
 ):
     _managers[ab_test_name] = ABManager(
         ab_test_name,
         dataframe,
-        group_col,
+        abgroup_col,
         date_col,
         uniq_id_col,
         control_group_name,
-        data_cols
+        data_cols,
+        significance_level=significance_level
     )
 
     return _managers[ab_test_name]
@@ -42,7 +44,7 @@ def test_hypothesis_relational(
     stat_test,
     description=None,
     uniq_id_rel=True,
-    significance_level=DEFAULT_ALPHA
+    significance_level=None
 ):
     display('test_hypothesis_relational')
 
@@ -63,7 +65,7 @@ def test_hypothesis_continuous(
     value,
     stat_test,
     description=None,
-    significance_level=DEFAULT_ALPHA
+    significance_level=None
 ):
     display('test_hypothesis_continuous')
     if ab_test_name in _managers:
