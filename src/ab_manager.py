@@ -4,17 +4,18 @@ import seaborn as sns
 
 from statsmodels.stats.multitest import multipletests
 
+import matplotlib.pyplot as plt
+
 from IPython.display import display
 
 from ab_hypothesis import Hypothesis
 from ab_consts import METRIC_COL_NAME
 from ab_consts import DEFAULT_GROUP_NAMES
-from ab_consts import DEFAULT_ALPHA
 from ab_consts import H_CONTROL_GROUP_KEY
 from ab_consts import H_PVALUE_KEY
 from ab_consts import H_SIGNIFICANCE_KEY
-from ab_consts import H_SIGNIFICANCE_LEVEL_KEY
 from ab_consts import H_TEST_GROUP_KEY
+from ab_consts import DEFAULT_SIGNIFICANCE_LEVEL
 
 
 VALIDATION_TYPE__GROUPS_PER_UNIQ_ID = 'groups_per_uniq_id'
@@ -27,18 +28,19 @@ class ABManager:
         self,
         ab_test_name,
         ab_df,
-        group_col,
+        abgroup_col,
         timeseries_col,
         uniq_id_col,
-        control_group_name = None,
-        data_cols = None
+        control_group_name=None,
+        data_cols=None,
+        significance_level=None
     ):
         self.name = ab_test_name
-        self.group_col = group_col
+        self.abgroup_col = abgroup_col
         self.timeseries_col = timeseries_col
         self.uniq_id_col = uniq_id_col
 
-        self.available_groups = np.sort(ab_df[group_col].unique())
+        self.available_groups = np.sort(ab_df[abgroup_col].unique())
 
         self.control_group_name = None
         if control_group_name is not None:
@@ -54,8 +56,7 @@ class ABManager:
                 'control group name is undefined or not in dataframe'
             )
 
-        self.uniq_id_grouping_cols = [group_col, timeseries_col, uniq_id_col]
-        self.timeseries_grouping_cols = [group_col, timeseries_col]
+        self.uniq_id_grouping_cols = [abgroup_col, timeseries_col, uniq_id_col]
 
         if data_cols is None:
             data_cols = np.setdiff1d(
@@ -68,14 +69,25 @@ class ABManager:
                 self.uniq_id_grouping_cols,
                 as_index=False
             )[data_cols]\
-            .sum()
+            .sum()\
+
+        self.ab_df[timeseries_col] = pd.to_datetime(self.ab_df[timeseries_col])
+
+        self.ab_df.sort_values(timeseries_col, inplace=True)
+
+        self.timeseries_period_dates = \
+            np.sort(self.ab_df[timeseries_col].dt.date.unique())
+        self.timeseries_period_start_date = self.timeseries_period_dates.min()
+
+        if significance_level is not None:
+            self.significance_level = significance_level
 
         self._hypothesis = {}
         self._combined_groups = self._pair_groups(ab_df)
 
     def _pair_groups(self, h_df):
         combined_groups = {}
-        for group in np.sort(h_df[self.group_col].unique()):
+        for group in np.sort(h_df[self.abgroup_col].unique()):
             if not group or group == self.control_group_name:
                 continue
 
@@ -95,13 +107,13 @@ class ABManager:
 
     def _get_groups_stats(self, df_w_test_groups):
         return df_w_test_groups\
-            .groupby(self.uniq_id_col, as_index=False)[self.group_col]\
+            .groupby(self.uniq_id_col, as_index=False)[self.abgroup_col]\
             .nunique()\
-            .groupby(self.group_col, as_index=False)[self.uniq_id_col]\
+            .groupby(self.abgroup_col, as_index=False)[self.uniq_id_col]\
             .nunique()
 
     def _describe_by_group(self, df_to_desc):
-        return df_to_desc.groupby(self.group_col).describe().T
+        return df_to_desc.groupby(self.abgroup_col).describe().T
 
     def test_hypothesis_continuous(
         self,
@@ -109,13 +121,16 @@ class ABManager:
         stat_test,
         description,
         na_is_zero=True,
-        significance_level=DEFAULT_ALPHA,
+        significance_level=None,
         silent=False
     ):
         h_name = Hypothesis.generate_hypothesis_name(
             description,
             value_col=value_col
         )
+
+        if significance_level is None:
+            significance_level = self.significance_level
 
         if h_name in self._hypothesis:
             h = self._hypothesis[h_name]
@@ -124,9 +139,10 @@ class ABManager:
                 value_col=value_col,
                 name=description,
                 stat_test=stat_test,
-                group_col=self.group_col,
+                group_col=self.abgroup_col,
                 control_group_name=self.control_group_name,
-                combined_groups=self._combined_groups
+                combined_groups=self._combined_groups,
+                significance_level=significance_level
             )
             self._hypothesis[h_name] = h
 
@@ -141,12 +157,19 @@ class ABManager:
             .groupby(self.uniq_id_grouping_cols, as_index=False)[value_col]\
             .sum()
 
-        if silent:
+        if not silent:
             timeseries_df = hypothesis_df\
-                .groupby(self.timeseries_grouping_cols, as_index=False)\
+                .groupby([self.abgroup_col, self.timeseries_col], as_index=False)\
                 .agg(metric = (value_col, 'mean'))
 
-            display(timeseries_df)
+            display(
+                hypothesis_df\
+                    .groupby(
+                        [self.abgroup_col],
+                        as_index=False
+                    )\
+                    .agg(metric = (value_col, 'mean'))
+            )
 
             self._draw_metrics_chart_by_timeline(
                 timeseries_df,
@@ -154,11 +177,24 @@ class ABManager:
                 description
             )
 
+            periods_df = self._get_testing_df_by_periods(
+                hypothesis_df,
+                grouping_cols=[self.abgroup_col, self.uniq_id_col],
+                agg_cols=[value_col],
+                agg_funcs={value_col: 'sum'},
+                hypothesis=h
+            )
+
+            self._draw_metrics_chart_by_timeline_and_fill_between(
+                periods_df,
+                H_PVALUE_KEY,
+                title=description,
+                acceptance_band=significance_level
+            )
+
         h.test(
             hypothesis_df,
-            stat_test,
-            save_testing=True,
-            significance_level=significance_level
+            save_testing=True
         )
 
     def test_hypothesis_relational(
@@ -168,7 +204,7 @@ class ABManager:
         stat_test,
         description,
         uniq_id_rel = False,
-        significance_level=DEFAULT_ALPHA,
+        significance_level=DEFAULT_SIGNIFICANCE_LEVEL,
         silent=False
     ):
         h_name = Hypothesis.generate_hypothesis_name(
@@ -176,6 +212,9 @@ class ABManager:
             nom_col=nominator,
             den_col=denominator
         )
+
+        if significance_level is None:
+            significance_level = self.significance_level
 
         if h_name in self._hypothesis:
             h = self._hypothesis[h_name]
@@ -185,16 +224,17 @@ class ABManager:
                 den_col=denominator,
                 name=description,
                 stat_test=stat_test,
-                group_col=self.group_col,
+                group_col=self.abgroup_col,
                 control_group_name=self.control_group_name,
-                combined_groups=self._combined_groups
+                combined_groups=self._combined_groups,
+                significance_level=significance_level
             )
             self._hypothesis[h_name] = h
 
         if uniq_id_rel:
             timeseries_df = self.ab_df\
                 .groupby(
-                    self.timeseries_grouping_cols,
+                    [self.abgroup_col, self.timeseries_col],
                     as_index=False
                 )[[nominator, denominator]]\
                 .agg({
@@ -204,7 +244,7 @@ class ABManager:
         else:
             timeseries_df = self.ab_df\
                 .groupby(
-                    self.timeseries_grouping_cols,
+                    [self.abgroup_col, self.timeseries_col],
                     as_index=False
                 )[[nominator, denominator]]\
                 .agg({
@@ -215,7 +255,7 @@ class ABManager:
         timeseries_df[METRIC_COL_NAME] = \
             timeseries_df[nominator] / timeseries_df[denominator]
 
-        if silent:
+        if not silent:
             display(timeseries_df)
 
             self._draw_metrics_chart_by_timeline(
@@ -224,47 +264,115 @@ class ABManager:
                 description
             )
 
+            periods_df = self._get_testing_df_by_periods(
+                timeseries_df,
+                grouping_cols=[self.abgroup_col],
+                agg_cols=[nominator, denominator],
+                agg_funcs={nominator: 'sum', denominator: 'sum'},
+                hypothesis=h
+            )
+
+            self._draw_metrics_chart_by_timeline_and_fill_between(
+                periods_df,
+                H_PVALUE_KEY,
+                title=description,
+                acceptance_band=significance_level
+            )
+
         hypothesis_df = timeseries_df\
-            .groupby(self.group_col, as_index=False)\
+            .groupby(self.abgroup_col, as_index=False)\
             .sum()
 
         h.test(
             hypothesis_df,
-            stat_test,
-            save_testing=True,
-            significance_level=significance_level
+            save_testing=True
         )
 
-    def _draw_metrics_chart_by_timeline(self, df, feature_col, name):
-        plt = sns.lineplot(
+    def _get_testing_df_by_periods(
+        self,
+        ab_df,
+        grouping_cols,
+        agg_cols,
+        agg_funcs,
+        hypothesis
+    ):
+        periods_of_ab_testing = []
+        for period_finish in self.timeseries_period_dates:
+            period_ab_df = ab_df\
+                [
+                    (ab_df[self.timeseries_col].dt.date >= \
+                        self.timeseries_period_start_date)
+                    & (ab_df[self.timeseries_col].dt.date <= period_finish)
+                ]\
+                .groupby(
+                    grouping_cols,
+                    as_index=False
+                )[agg_cols].agg(agg_funcs)
+
+            # display(period_finish, period_ab_df)
+
+            test_results = hypothesis.test(
+                period_ab_df,
+                save_testing=False
+            )
+
+            for test_result in test_results.keys():
+                periods_of_ab_testing.append([
+                    period_finish,
+                    test_result,
+                    test_results[test_result][H_PVALUE_KEY]
+                ])
+
+        return pd.DataFrame(
+            periods_of_ab_testing,
+            columns=[
+                self.timeseries_col,
+                self.abgroup_col,
+                H_PVALUE_KEY
+            ]
+        )
+
+    def _draw_metrics_chart_by_timeline(self, df, line_col, title, show=True):
+        ax = sns.lineplot(
             data=df,
-            hue=self.group_col,
+            hue=self.abgroup_col,
             x=self.timeseries_col,
-            y=feature_col,
+            y=line_col,
             estimator=None,
             legend='full'
         )
-        plt.set_title(name)
+        ax.set_title(title)
+        ax.tick_params(axis='x', labelrotation=45)
 
-        return plt
+        if show:
+            plt.show()
+
+        return ax
 
     def _draw_metrics_chart_by_timeline_and_fill_between(
         self,
         df,
-        feature_col,
-        name,
+        line_col,
+        title,
         **kwargs
     ):
-        plt = self._draw_metrics_chart_by_timeline(df, feature_col, name)
+        ax = self._draw_metrics_chart_by_timeline(
+            df,
+            line_col,
+            title,
+            show=False
+        )
 
-        if 'fill_between_x' in kwargs:
-            plt.fill_between(
-                df[self.timeline_col].unique(),
+        if 'significance_band' in kwargs:
+            ax.fill_between(
+                df[self.timeseries_col].unique(),
                 0,
-                kwargs['fill_between_x'],
+                kwargs['acceptance_band'],
                 color='green',
                 alpha=0.2
             )
+
+        plt.show()
 
     def print_statistical_report(self, correction_method='holm'):
         self.print_metrics_report()

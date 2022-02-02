@@ -6,7 +6,7 @@ from statsmodels.stats.proportion import proportions_chisquare
 from ab_consts import STAT_TEST_CHISQUARE
 from ab_consts import STAT_TEST_TTEST
 from ab_consts import STAT_TEST_TTEST_WELSH
-from ab_consts import DEFAULT_ALPHA
+from ab_consts import DEFAULT_SIGNIFICANCE_LEVEL
 from ab_consts import H_CONTROL_GROUP_KEY
 from ab_consts import H_PVALUE_KEY
 from ab_consts import H_SIGNIFICANCE_KEY
@@ -32,8 +32,9 @@ class Hypothesis:
         name = '',
         control_group_name = None,
         group_col=None,
+        combined_groups={},
         stat_test=None,
-        combined_groups={}
+        significance_level=DEFAULT_SIGNIFICANCE_LEVEL
     ):
         self.nom_col = nom_col
         self.den_col = den_col
@@ -43,15 +44,14 @@ class Hypothesis:
         self.group_col = group_col
         self.control_group_name = control_group_name
         self.combined_groups = combined_groups
+        self.significance_level=significance_level
 
         self.groups_hypothesis = {}
 
     def test(
         self,
         h_df,
-        stat_test,
-        save_testing=True,
-        significance_level=DEFAULT_ALPHA
+        save_testing=True
     ):
         if len(self.combined_groups.keys()) == 0:
             raise ValueError('groups combination are not set')
@@ -62,17 +62,34 @@ class Hypothesis:
         for combination_name, groups_combination in self.combined_groups.items():
             test_df = h_df[h_df[self.group_col] == groups_combination['test']]
 
-            if stat_test == STAT_TEST_CHISQUARE:
-                _, pvalue, _ = proportions_chisquare(
-                    [
-                        control_df[self.nom_col].values[0],
-                        test_df[self.nom_col].values[0]
-                    ],
-                    [
-                        control_df[self.den_col].values[0],
-                        test_df[self.den_col].values[0]
-                    ]
-                )
+            if self.stat_test == STAT_TEST_CHISQUARE:
+                c_successes = control_df[self.nom_col].values[0]
+                t_successes = test_df[self.nom_col].values[0]
+                c_trials = control_df[self.den_col].values[0]
+                t_trials = test_df[self.den_col].values[0]
+
+                if c_trials > 0 and t_trials > 0 \
+                    and c_successes > 0 and t_successes > 0:
+                    _, pvalue, _ = proportions_chisquare(
+                        [
+                            c_successes,
+                            t_successes
+                        ],
+                        [
+                            c_trials,
+                            t_trials
+                        ]
+                    )
+                else:
+                    display(
+                        'zero trials or successes, hypothesis won\'t be tested'
+                            + ' in groups ' + combination_name,
+                        'successes in control = ' + str(c_successes),
+                        'trials in control = ' + str(c_trials),
+                        'successes in test = ' + str(t_successes),
+                        'trials in test = ' + str(t_trials),
+                    )
+                    pvalue = np.NaN
 
                 _groups_hypothesis[combination_name] = {
                     H_PVALUE_KEY: pvalue,
@@ -82,25 +99,27 @@ class Hypothesis:
                     H_TEST_GROUP_KEY:
                         (test_df[self.nom_col] / test_df[self.den_col])\
                             .values[0],
-                    H_SIGNIFICANCE_LEVEL_KEY: significance_level,
-                    H_SIGNIFICANCE_KEY: pvalue < significance_level
+                    H_SIGNIFICANCE_LEVEL_KEY: self.significance_level,
+                    H_SIGNIFICANCE_KEY:
+                        pvalue < (self.significance_level)
                 }
 
-            elif stat_test in (STAT_TEST_TTEST, STAT_TEST_TTEST_WELSH):
+            elif self.stat_test in (STAT_TEST_TTEST, STAT_TEST_TTEST_WELSH):
                 if control_df[self.value_col].shape[0] > 1\
                 and test_df[self.value_col].shape[0] > 1:
                     _, pvalue = ttest_ind(
                         control_df[self.value_col],
                         test_df[self.value_col],
-                        equal_var=stat_test == STAT_TEST_TTEST
+                        equal_var=self.stat_test == STAT_TEST_TTEST
                     )
 
                     _groups_hypothesis[combination_name] = {
                         H_PVALUE_KEY: pvalue,
                         H_CONTROL_GROUP_KEY: control_df[self.value_col].mean(),
                         H_TEST_GROUP_KEY: test_df[self.value_col].mean(),
-                        H_SIGNIFICANCE_LEVEL_KEY: significance_level,
-                        H_SIGNIFICANCE_KEY: pvalue < significance_level
+                        H_SIGNIFICANCE_LEVEL_KEY: self.significance_level,
+                        H_SIGNIFICANCE_KEY:
+                            pvalue < (self.significance_level)
                     }
                 else:
                     display(
@@ -117,7 +136,7 @@ class Hypothesis:
                         H_PVALUE_KEY: np.NaN,
                         H_CONTROL_GROUP_KEY: np.NaN,
                         H_TEST_GROUP_KEY: np.NaN,
-                        H_SIGNIFICANCE_LEVEL_KEY: significance_level,
+                        H_SIGNIFICANCE_LEVEL_KEY: self.significance_level,
                         H_SIGNIFICANCE_KEY: False
                     }
 
