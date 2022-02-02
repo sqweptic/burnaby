@@ -189,7 +189,7 @@ class ABManager:
                 periods_df,
                 H_PVALUE_KEY,
                 title=description,
-                acceptance_band=1-significance_level
+                acceptance_band=significance_level
             )
 
         h.test(
@@ -276,7 +276,7 @@ class ABManager:
                 periods_df,
                 H_PVALUE_KEY,
                 title=description,
-                acceptance_band=1-significance_level
+                acceptance_band=significance_level
             )
 
         hypothesis_df = timeseries_df\

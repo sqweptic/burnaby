@@ -101,7 +101,7 @@ class Hypothesis:
                             .values[0],
                     H_SIGNIFICANCE_LEVEL_KEY: self.significance_level,
                     H_SIGNIFICANCE_KEY:
-                        pvalue < (1 - self.significance_level)
+                        pvalue < (self.significance_level)
                 }
 
             elif self.stat_test in (STAT_TEST_TTEST, STAT_TEST_TTEST_WELSH):
@@ -119,7 +119,7 @@ class Hypothesis:
                         H_TEST_GROUP_KEY: test_df[self.value_col].mean(),
                         H_SIGNIFICANCE_LEVEL_KEY: self.significance_level,
                         H_SIGNIFICANCE_KEY:
-                            pvalue < (1 - self.significance_level)
+                            pvalue < (self.significance_level)
                     }
                 else:
                     display(
