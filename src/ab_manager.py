@@ -7,8 +7,9 @@ from statsmodels.stats.multitest import multipletests
 import matplotlib.pyplot as plt
 
 from IPython.display import display
+from IPython.core.display import Markdown
 
-from ab_hypothesis import Hypothesis
+from ab_hypothesis import ABHypothesis
 from ab_consts import METRIC_COL_NAME
 from ab_consts import DEFAULT_GROUP_NAMES
 from ab_consts import H_CONTROL_GROUP_KEY
@@ -16,6 +17,13 @@ from ab_consts import H_PVALUE_KEY
 from ab_consts import H_SIGNIFICANCE_KEY
 from ab_consts import H_TEST_GROUP_KEY
 from ab_consts import DEFAULT_SIGNIFICANCE_LEVEL
+from ab_consts import H_KIND_CONTINUOUS
+from ab_consts import PROPORTION_FORMAT
+from ab_consts import UPLIFT_FORMAT
+from ab_hypothesis_manager import ABHypothesisManager
+from aggregation import Aggregation
+from charts.pvalue_chart import PValueChart
+from metrics import Metrics
 
 
 VALIDATION_TYPE__GROUPS_PER_UNIQ_ID = 'groups_per_uniq_id'
@@ -33,7 +41,8 @@ class ABManager:
         uniq_id_col,
         control_group_name=None,
         data_cols=None,
-        significance_level=None
+        significance_level=None,
+        aggregations=None
     ):
         self.name = ab_test_name
         self.abgroup_col = abgroup_col
@@ -56,33 +65,45 @@ class ABManager:
                 'control group name is undefined or not in dataframe'
             )
 
-        self.uniq_id_grouping_cols = [abgroup_col, timeseries_col, uniq_id_col]
+        self.ab_grouping_cols = [
+            abgroup_col,
+            uniq_id_col
+        ]
 
-        if data_cols is None:
-            data_cols = np.setdiff1d(
-                ab_df.columns,
-                self.uniq_id_grouping_cols
-            )
+        # if data_cols is None:
+        #     data_cols = np.setdiff1d(
+        #         ab_df.columns,
+        #         self.ab_grouping_cols
+        #     )
 
-        self.ab_df = ab_df\
-            .groupby(
-                self.uniq_id_grouping_cols,
-                as_index=False
-            )[data_cols]\
-            .sum()\
+        ab_df[timeseries_col] = \
+            pd.to_datetime(ab_df[timeseries_col]).dt.date
 
-        self.ab_df[timeseries_col] = pd.to_datetime(self.ab_df[timeseries_col])
+        ab_df.sort_values(timeseries_col, inplace=True)
 
-        self.ab_df.sort_values(timeseries_col, inplace=True)
+        # self.ab_df = ab_df\
+        #     .groupby(
+        #         self.uniq_id_grouping_cols,
+        #         as_index=False
+        #     )[data_cols]\
+        #     .sum()
+
+        self.aggregations = Aggregation.generate_aggregation(
+            ab_df,
+            aggregations
+        )
+
+        print(self.aggregations)
 
         self.timeseries_period_dates = \
-            np.sort(self.ab_df[timeseries_col].dt.date.unique())
+            np.sort(ab_df[timeseries_col].unique())
         self.timeseries_period_start_date = self.timeseries_period_dates.min()
 
-        if significance_level is not None:
-            self.significance_level = significance_level
+        self.ab_hypothesis_manager = ABHypothesisManager(
+            significance_level,
+            self.aggregations
+        )
 
-        self._hypothesis = {}
         self._combined_groups = self._pair_groups(ab_df)
 
     def _pair_groups(self, h_df):
@@ -91,7 +112,7 @@ class ABManager:
             if not group or group == self.control_group_name:
                 continue
 
-            combination_name = str(self.control_group_name) + '-' + str(group)
+            combination_name = str(group) + '-' + str(self.control_group_name)
             combined_groups[combination_name] = {
                 'control': self.control_group_name,
                 'test': group
@@ -100,10 +121,13 @@ class ABManager:
         return combined_groups
 
     def validate_ab_test_data(self, validators = _ALL_VALIDATORS):
-        display(self._describe_by_group(self.ab_df))
+        for aggregation in self.aggregations:
+            display(Markdown('# Aggregation ' + aggregation.get_name()))
+            vl_df = aggregation.get_dataframe()
+            display(self._describe_by_group(vl_df))
 
-        if VALIDATION_TYPE__GROUPS_PER_UNIQ_ID in validators:
-            display(self._get_groups_stats(self.ab_df))
+            if VALIDATION_TYPE__GROUPS_PER_UNIQ_ID in validators:
+                display(self._get_groups_stats(vl_df))
 
     def _get_groups_stats(self, df_w_test_groups):
         return df_w_test_groups\
@@ -115,14 +139,244 @@ class ABManager:
     def _describe_by_group(self, df_to_desc):
         return df_to_desc.groupby(self.abgroup_col).describe().T
 
+
+    def _get_hypothesis(
+        self,
+        kind,
+        name,
+        stat_test,
+        significance_level,
+        value=None,
+        nominator=None,
+        denominator=None
+    ):
+        if significance_level is None:
+            significance_level = DEFAULT_SIGNIFICANCE_LEVEL
+
+        h_params = dict(
+            stat_test=stat_test,
+            group_col=self.abgroup_col,
+            control_group_name=self.control_group_name,
+            combined_groups=self._combined_groups,
+            significance_level=significance_level
+        )
+        if kind == H_KIND_CONTINUOUS:
+            component_name = value
+            h_params['value'] = value
+        else:
+            component_name = nominator + ' / ' + denominator
+            h_params['nominator'] = nominator
+            h_params['denominator'] = denominator
+
+        h_fullname = Hypothesis.generate_hypothesis_name(
+            name,
+            component_name
+        )
+
+        if h_fullname in self._hypothesis:
+            h = self._hypothesis[h_fullname]
+        else:
+            h = Hypothesis(
+                **h_params
+            )
+            self._hypothesis[h_fullname] = h
+
+    def get_aggregations(self, values=None):
+        if values is not None:
+            agg_list = []
+            for agg_name, agg_values in values.items():
+                for agg_value in agg_values:
+                    for agg in self.aggregations:
+                        if agg.get_name() == agg_name\
+                            and agg.get_value() == agg_value:
+
+                            agg_list.append(agg)
+                            break
+
+            return agg_list
+
+        return self.aggregations
+
+    def _get_metrics_report(self, metrics_df, h_df):
+        rep_df = metrics_df.copy()
+
+        pvalue_cols = list(map(
+            lambda c: c + ' pvalue',
+            h_df.columns
+        ))
+
+        pvalue_df = h_df[h_df.index == H_PVALUE_KEY]
+        pvalue_df.index = metrics_df.index
+
+        rep_df[pvalue_cols] = pvalue_df
+
+        return rep_df
+
+    def calc_metrics(
+        self,
+        name,
+        mask=None,
+        silent=False,
+        continuous_measure_col=None,
+        nominator_col=None,
+        denominator_col=None,
+        is_uniq_id_proportions=False,
+        na_is_zero=False,
+        hypothesis=None,
+        aggregation_values=None
+    ):
+        print('calc_metrics', name)
+        for agg in self.get_aggregations(aggregation_values):
+            display(agg.get_formatted_name())
+
+            metrics = Metrics(
+                name,
+                agg.get_dataframe(),
+                format_str=PROPORTION_FORMAT,
+                relation_format_str=UPLIFT_FORMAT
+            )
+
+            agg.add_metrics(metrics)
+
+            if mask is not None:
+                metrics.append_mask(mask)
+
+            metrics.set_grouping(
+                [
+                    self.abgroup_col
+                ]
+            )
+
+            metrics.calc(
+                continuous_measure_col,
+                nominator_col,
+                denominator_col,
+                is_uniq_id_proportions,
+                na_is_zero
+            )
+
+            h = None
+            if hypothesis is not None:
+                h = ABHypothesis(
+                    name=name,
+                    nominator_col=nominator_col,
+                    denominator_col=denominator_col,
+                    continuous_measure_col=continuous_measure_col,
+                    control_group_name=self.control_group_name,
+                    combined_groups=self._combined_groups,
+                    group_col=self.abgroup_col,
+                    **hypothesis
+                )
+
+                h.test(metrics.get_output())
+
+            if not silent:
+                display(self._get_metrics_report(
+                    metrics.get_calc(relation_value=self.control_group_name),
+                    h.get_test()
+                ))
+
+                # m_time_df = metrics.get_pre_calc_df()
+
+                # if h is not None:
+                #     PValueChart()
+
+
+
+    # def test_hypothesis_proportions(
+    #     self,
+    #     nominator,
+    #     denominator,
+    #     stat_test,
+    #     name,
+    #     uniq_id_rel=False,
+    #     significance_level=DEFAULT_SIGNIFICANCE_LEVEL,
+    #     silent=False,
+    #     aggregations=None
+    # ):
+    #     h = self._get_hypothesis(
+    #         H_KIND_PROPORTIONS,
+    #         name,
+    #         stat_test,
+    #         significance_level,
+    #         nominator=nominator,
+    #         denominator=denominator
+    #     )
+
+    #     if uniq_id_rel:
+    #         timeseries_df = self.ab_df\
+    #             .groupby(
+    #                 [self.abgroup_col, self.timeseries_col],
+    #                 as_index=False
+    #             )[[nominator, denominator]]\
+    #             .agg({
+    #                 nominator: lambda x: 1 if (x > 0).any() else 0,
+    #                 denominator: lambda x: 1 if (x > 0).any() else 0
+    #             })
+    #     else:
+    #         timeseries_df = self.ab_df\
+    #             .groupby(
+    #                 [self.abgroup_col, self.timeseries_col],
+    #                 as_index=False
+    #             )[[nominator, denominator]]\
+    #             .agg({
+    #                 nominator: lambda x: sum(x) if (x > 0).any() else 0,
+    #                 denominator: lambda x: sum(x) if (x > 0).any() else 0
+    #             })
+
+    #     timeseries_df[METRIC_COL_NAME] = \
+    #         timeseries_df[nominator] / timeseries_df[denominator]
+
+    #     if not silent:
+    #         display(timeseries_df)
+
+    #         self._draw_metrics_chart_by_timeline(
+    #             timeseries_df,
+    #             METRIC_COL_NAME,
+    #             name
+    #         )
+
+    #         periods_df = self._get_testing_df_by_periods(
+    #             timeseries_df,
+    #             grouping_cols=[self.abgroup_col],
+    #             agg_cols=[nominator, denominator],
+    #             agg_funcs={nominator: 'sum', denominator: 'sum'},
+    #             hypothesis=h
+    #         )
+
+    #         self._draw_metrics_chart_by_timeline_and_fill_between(
+    #             periods_df,
+    #             H_PVALUE_KEY,
+    #             title=name,
+    #             acceptance_band=h.get_significance_level()
+    #         )
+
+    #     hypothesis_df = timeseries_df\
+    #         .groupby(self.abgroup_col, as_index=False)\
+    #         .sum()
+
+    #     h.test(
+    #         hypothesis_df,
+    #         save_testing=True
+    #     )
+
     def test_hypothesis_continuous(
+        # self,
+        # nominator,
+        # denominator,
+        # stat_test,
+        # name,
+        # uniq_id_rel=False,
+        # significance_level=DEFAULT_SIGNIFICANCE_LEVEL,
+        # silent=False
         self,
         value_col,
         stat_test,
         description,
         na_is_zero=True,
         significance_level=None,
-        silent=False
+        silent=False,
+        aggregations=None
     ):
         h_name = Hypothesis.generate_hypothesis_name(
             description,
@@ -146,7 +400,9 @@ class ABManager:
             )
             self._hypothesis[h_name] = h
 
-        hypothesis_df = self.ab_df
+        hypothesis_df = self.ab_df[
+            self.uniq_id_grouping_cols + value_col
+        ]
 
         if na_is_zero:
             hypothesis_df[value_col] = hypothesis_df[value_col].fillna(0)
@@ -191,97 +447,6 @@ class ABManager:
                 title=description,
                 acceptance_band=significance_level
             )
-
-        h.test(
-            hypothesis_df,
-            save_testing=True
-        )
-
-    def test_hypothesis_relational(
-        self,
-        nominator,
-        denominator,
-        stat_test,
-        description,
-        uniq_id_rel = False,
-        significance_level=DEFAULT_SIGNIFICANCE_LEVEL,
-        silent=False
-    ):
-        h_name = Hypothesis.generate_hypothesis_name(
-            description,
-            nom_col=nominator,
-            den_col=denominator
-        )
-
-        if significance_level is None:
-            significance_level = self.significance_level
-
-        if h_name in self._hypothesis:
-            h = self._hypothesis[h_name]
-        else:
-            h = Hypothesis(
-                nom_col=nominator,
-                den_col=denominator,
-                name=description,
-                stat_test=stat_test,
-                group_col=self.abgroup_col,
-                control_group_name=self.control_group_name,
-                combined_groups=self._combined_groups,
-                significance_level=significance_level
-            )
-            self._hypothesis[h_name] = h
-
-        if uniq_id_rel:
-            timeseries_df = self.ab_df\
-                .groupby(
-                    [self.abgroup_col, self.timeseries_col],
-                    as_index=False
-                )[[nominator, denominator]]\
-                .agg({
-                    nominator: lambda x: 1 if (x > 0).any() else 0,
-                    denominator: lambda x: 1 if (x > 0).any() else 0
-                })
-        else:
-            timeseries_df = self.ab_df\
-                .groupby(
-                    [self.abgroup_col, self.timeseries_col],
-                    as_index=False
-                )[[nominator, denominator]]\
-                .agg({
-                    nominator: lambda x: sum(x) if (x > 0).any() else 0,
-                    denominator: lambda x: sum(x) if (x > 0).any() else 0
-                })
-
-        timeseries_df[METRIC_COL_NAME] = \
-            timeseries_df[nominator] / timeseries_df[denominator]
-
-        if not silent:
-            display(timeseries_df)
-
-            self._draw_metrics_chart_by_timeline(
-                timeseries_df,
-                METRIC_COL_NAME,
-                description
-            )
-
-            periods_df = self._get_testing_df_by_periods(
-                timeseries_df,
-                grouping_cols=[self.abgroup_col],
-                agg_cols=[nominator, denominator],
-                agg_funcs={nominator: 'sum', denominator: 'sum'},
-                hypothesis=h
-            )
-
-            self._draw_metrics_chart_by_timeline_and_fill_between(
-                periods_df,
-                H_PVALUE_KEY,
-                title=description,
-                acceptance_band=significance_level
-            )
-
-        hypothesis_df = timeseries_df\
-            .groupby(self.abgroup_col, as_index=False)\
-            .sum()
 
         h.test(
             hypothesis_df,
@@ -374,7 +539,7 @@ class ABManager:
 
         plt.show()
 
-    def print_statistical_report(self, correction_method='holm'):
+    def print_statistics_report(self, correction_method='holm'):
         self.print_metrics_report()
         self.print_multiple_testing_report(correction_method)
 
