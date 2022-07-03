@@ -27,7 +27,7 @@ class Aggregation:
         self.data_df = data_df
         self.grouping_cols = grouping_cols
 
-        self.metrics = []
+        self.metrics_list = []
 
     def get_name(self):
         return self.agg_name
@@ -54,7 +54,10 @@ class Aggregation:
 
 
     def add_metrics(self, metrics):
-        self.metrics.append(metrics)
+        self.metrics_list.append(metrics)
+
+    def get_metrics_list(self):
+        return self.metrics_list
 
     def get_mask(self):
         if not self.is_whole_data:

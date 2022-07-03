@@ -89,17 +89,17 @@ class Metrics:
 
     def copy(self):
         return Metrics(
-            name = self.name,
-            data_df = self.data_df,
-            grouping = copy(self.grouping),
-            format_str = self.format_str,
-            relation_format_str = self.relation_format_str,
-            continuous_measure_col = self.continuous_measure_col,
-            continuous_measure_id_col = self.continuous_measure_id_col,
-            is_uniq_id_proportions = self.is_uniq_id_proportions,
-            nominator_col = self.nominator_col,
-            denominator_col = self.denominator_col,
-            na_is_zero = self.na_is_zero
+            name=self.name,
+            data_df=self.data_df,
+            grouping=copy(self.grouping),
+            format_str=self.format_str,
+            relation_format_str=self.relation_format_str,
+            continuous_measure_col=self.continuous_measure_col,
+            continuous_measure_id_col=self.continuous_measure_id_col,
+            is_uniq_id_proportions=self.is_uniq_id_proportions,
+            nominator_col=self.nominator_col,
+            denominator_col=self.denominator_col,
+            na_is_zero=self.na_is_zero
         )
 
     def _get_grouping(self, grouping, add_continuous_measure_id_col):

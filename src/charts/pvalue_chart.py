@@ -92,4 +92,5 @@ class PValueChart(PeriodChart):
             alpha=0.2
         )
 
+        plt.ylim([0, 1])
         plt.show()

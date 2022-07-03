@@ -19,6 +19,7 @@ from ab_consts import PROPORTION_FORMAT
 from ab_consts import UPLIFT_FORMAT
 from ab_hypothesis_manager import ABHypothesisManager
 from aggregation import Aggregation
+from ab_report import ABReport
 from charts.pvalue_chart import PValueChart
 from charts.period_chart import PeriodChart
 from metrics import Metrics
@@ -75,11 +76,13 @@ class ABManager:
             aggregations
         )
 
-        print(self.aggregations)
+        self.ab_hm = ABHypothesisManager(
+            significance_level=significance_level
+        )
 
-        self.ab_hypothesis_manager = ABHypothesisManager(
-            significance_level,
-            self.aggregations
+        self.report = ABReport(
+            self.aggregations,
+            self.ab_hm
         )
 
         self._combined_groups = self._pair_groups(ab_df)
@@ -193,8 +196,6 @@ class ABManager:
 
             metrics.calc()
 
-            display(metrics.get_data())
-
             h = None
             if hypothesis is not None:
                 h = ABHypothesis(
@@ -215,6 +216,8 @@ class ABManager:
 
                 h.test(output_df)
 
+                self.ab_hm.add_hypothesis(agg, metrics, h)
+
             if not silent:
                 display(Markdown('### Metrics ' + metrics.get_name()))
                 display(self._get_metrics_report(
@@ -222,7 +225,7 @@ class ABManager:
                         relation_value=self.control_group_name,
                         use_format=True
                     ).T,
-                    h.get_test()
+                    h.get_test().T
                 ))
 
                 PeriodChart(
@@ -240,10 +243,10 @@ class ABManager:
                     ).draw()
 
     def print_statistics_report(self, correction_method='holm'):
-        self.print_metrics_report()
-        self.print_multiple_testing_report(correction_method)
+        self.ab_hm.set_multihypothesis_method(correction_method)
+        self.report.display()
 
-    def print_metrics_report(self):
+    def _print_metrics_report(self):
         all_hypothesis_data = []
         for h in self._hypothesis.values():
             h_data = [

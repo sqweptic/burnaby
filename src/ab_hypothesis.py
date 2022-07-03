@@ -150,7 +150,7 @@ class ABHypothesis:
         return h_df
 
     def get_test(self):
-        return self.h_df.T
+        return self.h_df
 
     def get_name(self):
         return self.name
