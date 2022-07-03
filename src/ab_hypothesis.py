@@ -142,7 +142,7 @@ class ABHypothesis:
                         combination_name
                     )
 
-                    h_df.append(self._get_empty_data(combination_name))
+                    h_df = h_df.append(self._get_empty_data(combination_name))
 
         if save_testing:
             self.h_df = h_df
@@ -154,6 +154,3 @@ class ABHypothesis:
 
     def get_name(self):
         return self.name
-
-    # def get_combined_hypothesis(self):
-    #     return self.groups_hypothesis

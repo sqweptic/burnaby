@@ -56,15 +56,6 @@ class Aggregation:
     def add_metrics(self, metrics):
         self.metrics.append(metrics)
 
-    # def create_metrics(self, name):
-    #     metrics = Metrics(
-    #         name,
-    #         data_df=self.get_dataframe()
-    #     )
-    #     self.add_metrics(metrics)
-
-    #     return metrics
-
     def get_mask(self):
         if not self.is_whole_data:
             return self.data_df[self.agg_name] == self.agg_value
@@ -94,7 +85,6 @@ class Aggregation:
                 data_df
             ))
         else:
-            print('here')
             for agg_col in aggregations:
                 if agg_col in _USE_WHOLE_DATA_KEYWORDS:
                     aggs.append(Aggregation(
