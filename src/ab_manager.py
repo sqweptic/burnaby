@@ -61,7 +61,7 @@ class ABManager:
 
         if self.control_group_name is None:
             raise ValueError(
-                'control group name is undefined or not in dataframe'
+                'control group name is undefined or is not in dataframe'
             )
 
         self.ab_grouping_cols = [
@@ -86,6 +86,22 @@ class ABManager:
         )
 
         self._combined_groups = self._pair_groups(ab_df)
+
+        self.info_df = pd.DataFrame(
+            [
+                ['AB test name: ' + self.name],
+                [
+                    'Period: ' +
+                    str(ab_df[timeseries_col].min()) +
+                    ' - ' +
+                    str(ab_df[timeseries_col].max())
+                ],
+                ['Number of groups: ' + str(ab_df[abgroup_col].nunique())],
+                ['Unique ids: ' + str(ab_df[uniq_id_col].nunique())],
+                ['Significance level: ' + str(significance_level)],
+            ],
+            columns=['']
+        )
 
     def _pair_groups(self, h_df):
         combined_groups = {}
@@ -168,7 +184,6 @@ class ABManager:
         hypothesis=None,
         aggregation_values=None
     ):
-        print('calc_metrics', name)
         for agg in self.get_aggregations(aggregation_values):
             display(agg.get_formatted_name())
 
@@ -177,6 +192,7 @@ class ABManager:
                 agg.get_dataframe(),
                 continuous_measure_col=continuous_measure_col,
                 continuous_measure_id_col=self.uniq_id_col,
+                relation_value=self.control_group_name,
                 nominator_col=nominator_col,
                 denominator_col=denominator_col,
                 is_uniq_id_proportions=is_uniq_id_proportions,
@@ -195,6 +211,8 @@ class ABManager:
             )
 
             metrics.calc()
+
+            self.report.clear_report()
 
             h = None
             if hypothesis is not None:
@@ -222,7 +240,7 @@ class ABManager:
                 display(Markdown('### Metrics ' + metrics.get_name()))
                 display(self._get_metrics_report(
                     metrics.get_calc(
-                        relation_value=self.control_group_name,
+                        calc_relation=True,
                         use_format=True
                     ).T,
                     h.get_test().T
@@ -243,101 +261,19 @@ class ABManager:
                     ).draw()
 
     def print_statistics_report(self, correction_method='holm'):
-        self.ab_hm.set_multihypothesis_method(correction_method)
+        self.ab_hm.set_multiple_hypothesis_correction(correction_method)
+
         self.report.display()
 
-    def _print_metrics_report(self):
-        all_hypothesis_data = []
-        for h in self._hypothesis.values():
-            h_data = [
-                h.get_name()
-            ]
-            significances = []
-            control_metric_set = False
+    def save_report_to_excel(self, filename_or_path, correction_method='holm'):
+        self.ab_hm.set_multiple_hypothesis_correction(correction_method)
 
-            for _, ch in h.get_combined_hypothesis().items():
-                if not ch or np.isnan(ch[H_TEST_GROUP_KEY]):
-                    h_data.append(np.NaN)
-                    significances.append(np.NaN)
-                    continue
-
-                if not control_metric_set:
-                    h_data.append(round(ch[H_CONTROL_GROUP_KEY], 3))
-                    control_metric_set = True
-
-                uplift = \
-                    ch[H_TEST_GROUP_KEY] / ch[H_CONTROL_GROUP_KEY] * 100 - 100
-                sign = '+' if uplift >= 0 else ''
-
-                group_comb_res = str(round(ch[H_TEST_GROUP_KEY], 3))\
-                    + ' ({sign}{uplift:.2f}%)'.format(sign=sign, uplift=uplift)
-                h_data.append(group_comb_res)
-
-                significances.append(
-                    '+ (H0 rejected)'
-                        if ch[H_SIGNIFICANCE_KEY]
-                        else '- (H0 accepted)'
-                )
-
-            all_hypothesis_data.append(h_data + significances)
-
-        columns = ['metrics', self.control_group_name]
-        sign_columns = []
-
-        for group in self.available_groups:
-            if group == self.control_group_name:
-                continue
-
-            columns.append(group)
-            sign_col_name = 'group {control_group}-{group} sign.'.format(
-                control_group=self.control_group_name,
-                group=group
-            )
-            sign_columns.append(sign_col_name)
-
-        display(
-            pd.DataFrame(
-                all_hypothesis_data,
-                columns=columns+sign_columns
-            ).set_index('metrics')
+        self.report.save_to_excel(
+            filename_or_path,
+            info_df=self.info_df
         )
 
-    def print_multiple_testing_report(self, method='holm'):
-        h_i = 0
-        h_dict = {}
-        pvalues_list = []
-        for h in self._hypothesis.values():
-            for ch_name, ch in h.get_combined_hypothesis().items():
-                if not ch or np.isnan(ch[H_TEST_GROUP_KEY]):
-                    continue
-
-                pvalues_list.append(ch[H_PVALUE_KEY])
-
-                h_dict[h_i] = {
-                    'metric': h.get_name(),
-                    'combination': ch_name
-                }
-
-                h_i += 1
-
-        _, corrected_pvalues_list, _, _ = \
-            multipletests(pvalues_list, method=method)
-
-        h_df = pd.DataFrame()
-        corr_h_df = pd.DataFrame()
-
-        for i, h_params in h_dict.items():
-            pval_col = 'pval. ' + h_params['combination']
-            corr_pval_col = 'corrected pval. ' + h_params['combination']
-
-            h_df.loc[h_params['metric'], pval_col] = round(pvalues_list[i], 3)
-            corr_h_df.loc[h_params['metric'], corr_pval_col] = \
-                round(corrected_pvalues_list[i], 3)
-
-        display(
-            method.capitalize() + ' miltiple testing correction is applied',
-            h_df.join(corr_h_df)
-        )
+        print('saved to file', filename_or_path)
 
     def __repr__(self):
         return self.name

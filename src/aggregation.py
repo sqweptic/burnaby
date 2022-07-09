@@ -27,7 +27,7 @@ class Aggregation:
         self.data_df = data_df
         self.grouping_cols = grouping_cols
 
-        self.metrics_list = []
+        self.metrics_dct = {}
 
     def get_name(self):
         return self.agg_name
@@ -38,13 +38,18 @@ class Aggregation:
     def __repr__(self) -> str:
         return self.get_full_name()
 
-    def get_full_name(self):
+    def get_full_name(self, use_markdown=False):
         if self.is_whole_data:
-            return 'Whole dataset'
+            fname = 'Whole dataset'
+        else:
+            fname = self.agg_name + (
+                ' = ' + self.agg_value if self.agg_value is not None else ''
+            )
 
-        return self.agg_name + (
-            ' = ' + self.agg_value if self.agg_value is not None else ''
-        )
+        if use_markdown:
+            return Markdown('# ' + fname)
+
+        return fname
 
     def get_name_list(self, return_specified):
         if return_specified:
@@ -54,10 +59,10 @@ class Aggregation:
 
 
     def add_metrics(self, metrics):
-        self.metrics_list.append(metrics)
+        self.metrics_dct[metrics.get_name()] = metrics
 
     def get_metrics_list(self):
-        return self.metrics_list
+        return list(self.metrics_dct.values())
 
     def get_mask(self):
         if not self.is_whole_data:
@@ -99,7 +104,6 @@ class Aggregation:
 
                 agg_values = data_df[agg_col].drop_duplicates()
                 for agg_value in agg_values:
-                    display(agg_col, agg_value)
                     aggs.append(Aggregation(
                         agg_col,
                         agg_value,

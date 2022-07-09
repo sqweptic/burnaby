@@ -25,6 +25,7 @@ class Metrics:
         grouping=None,
         format_str=None,
         relation_format_str=None,
+        relation_value=None,
         continuous_measure_col=None,
         continuous_measure_id_col=None,
         nominator_col=None,
@@ -43,6 +44,7 @@ class Metrics:
 
         self.continuous_measure_col = continuous_measure_col
         self.continuous_measure_id_col = continuous_measure_id_col
+        self.relation_value = relation_value
 
         self.nominator_col = nominator_col
         self.denominator_col = denominator_col
@@ -94,6 +96,7 @@ class Metrics:
             grouping=copy(self.grouping),
             format_str=self.format_str,
             relation_format_str=self.relation_format_str,
+            relation_value=self.relation_value,
             continuous_measure_col=self.continuous_measure_col,
             continuous_measure_id_col=self.continuous_measure_id_col,
             is_uniq_id_proportions=self.is_uniq_id_proportions,
@@ -195,7 +198,7 @@ class Metrics:
 
     def get_calc(
         self,
-        relation_value=None,
+        calc_relation=False,
         use_format=False
     ):
         m_df = self.metrics_df[[METRIC_COL_NAME]]
@@ -204,16 +207,16 @@ class Metrics:
         if use_format:
             foutput_dt = foutput_dt.applymap(self.format_str.format)
 
-        if relation_value is not None:
-            if m_df[m_df.index == relation_value].shape[0] == 0:
+        if calc_relation:
+            if m_df[m_df.index == self.relation_value].shape[0] == 0:
                 rel = np.NaN
             else:
-                rel = m_df[m_df.index == relation_value].values[0][0]
+                rel = m_df[m_df.index == self.relation_value].values[0][0]
 
-            no_rel_value_df = m_df[m_df.index != relation_value]
+            no_rel_value_df = m_df[m_df.index != self.relation_value]
 
             rel_columns = list(map(
-                lambda v: str(v) + '-' + str(relation_value),
+                lambda v: str(v) + '-' + str(self.relation_value),
                 no_rel_value_df.index
             ))
 

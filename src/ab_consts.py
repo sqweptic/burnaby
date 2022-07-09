@@ -27,3 +27,5 @@ H_CONTROL_GROUP_KEY = 'control'
 H_TEST_GROUP_KEY = 'test'
 H_SIGNIFICANCE_KEY = 'significance'
 H_SIGNIFICANCE_LEVEL_KEY = 'sig_level'
+
+R_AGGREGATION_COL = '_aggregation'

@@ -87,7 +87,7 @@ class PValueChart(PeriodChart):
         ax.fill_between(
             data_df[x_col].unique(),
             0,
-            0.05,
+            self.h.get_significance_level(),
             color='green',
             alpha=0.2
         )
