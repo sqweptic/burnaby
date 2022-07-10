@@ -40,7 +40,7 @@ class PValueChart(PeriodChart):
         r = None
         for period_start, period_end in self.get_periods(m_df):
             self.metrics.calc(
-                mask= (m_df[self.timeseries_col] >= period_start)
+                mask = (m_df[self.timeseries_col] >= period_start)
                     & (m_df[self.timeseries_col] <= period_end)
             )
 

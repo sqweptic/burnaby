@@ -44,26 +44,32 @@ def calc_metrics(
     name,
     mask=None,
     silent=False,
-    continue_measure_col=None,
+    continuous_measure_col=None,
     nominator_col=None,
     denominator_col=None,
     is_uniq_id_proportions=False,
     na_is_zero=False,
+    outliers=None,
+    outliers_quantile=None,
+    outliers_quantile_min_value=None,
     hypothesis=None,
     aggregation_values=None
 ):
     if ab_test_name in _managers:
         return _managers[ab_test_name].calc_metrics(
-            name,
-            mask,
-            silent,
-            continue_measure_col,
-            nominator_col,
-            denominator_col,
-            is_uniq_id_proportions,
-            na_is_zero,
-            hypothesis,
-            aggregation_values
+            name=name,
+            mask=mask,
+            silent=silent,
+            continuous_measure_col=continuous_measure_col,
+            nominator_col=nominator_col,
+            denominator_col=denominator_col,
+            is_uniq_id_proportions=is_uniq_id_proportions,
+            outliers=outliers,
+            outliers_quantile=outliers_quantile,
+            outliers_quantile_min_value=outliers_quantile_min_value,
+            na_is_zero=na_is_zero,
+            hypothesis=hypothesis,
+            aggregation_values=aggregation_values
         )
     else:
         print('no such ab test - ', ab_test_name)
