@@ -150,20 +150,28 @@ class DistributionChart(BaseChart):
 
         output_df = self.metrics.get_output()
 
-        v_mask = output_df[self.metrics.get_output_col()] > \
-            self.outliers_quantile_min_value
-        v_df = output_df[v_mask]
+        if self.outliers is not None:
+            v_mask = output_df[self.metrics.get_output_col()] > \
+                self.outliers_quantile_min_value
 
-        quantiles_df = self.metrics.get_quantile_df(v_df)
+            v_df = output_df[v_mask]
+
+            quantiles_df = self.metrics.get_quantile_df(
+                v_df,
+                outliers=self.outliers
+            )
+
+            quantiles_df.columns = [self.metrics.get_output_col()]
+            quantiles_df = quantiles_df.reset_index()
+        else:
+            quantiles_df = None
+            v_df = output_df
 
         v_df = v_df \
             .sort_values(by=self.metrics.get_output_col()) \
             .reset_index()
 
         v_df['x'] = range(0, len(v_df))
-
-        quantiles_df.columns = [self.metrics.get_output_col()]
-        quantiles_df = quantiles_df.reset_index()
 
         return {
             'data_df': v_df,

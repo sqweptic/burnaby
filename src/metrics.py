@@ -160,17 +160,17 @@ class Metrics:
 
         return interm_df
 
-    def get_quantile_df(self, m_df, grouping=None):
+    def get_quantile_df(self, m_df, outliers, grouping=None):
         grp = self._get_grouping(grouping, False)
 
-        if self.outliers == OUTLIERS_GROUPS_TYPE:
+        if outliers == OUTLIERS_GROUPS_TYPE:
             m_grouped_df = m_df.groupby(grp)
 
             grp_q_df = m_grouped_df.quantile(self.outliers_quantile)
             grp_q_df.columns = [QUANTILE_COL_NAME]
 
             return grp_q_df
-        elif self.outliers == OUTLIERS_METRICS_DATA_TYPE:
+        elif outliers == OUTLIERS_METRICS_DATA_TYPE:
             grp_q_index = m_df.reset_index()[grp].drop_duplicates()
 
             if len(grp) > 1:
@@ -208,7 +208,11 @@ class Metrics:
         else:
             no_min_value_m_df = m_df
 
-        quantile_df = self.get_quantile_df(no_min_value_m_df, grouping=grouping)
+        quantile_df = self.get_quantile_df(
+            no_min_value_m_df,
+            outliers=self.outliers,
+            grouping=grouping
+        )
 
         m_joined_q_df = m_df.join(quantile_df)
 

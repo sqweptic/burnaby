@@ -77,6 +77,13 @@ class ABHypothesis:
             self.combined_groups.items():
 
             if groups_combination['test'] not in m_df.index:
+                display(
+                    'no test group "{test_group_name}"' + \
+                    ' in data - empty result'.format(
+                        test_group_name=groups_combination['test']
+                    )
+                )
+                h_df = h_df.append(self._get_empty_data(combination_name))
                 continue
 
             test_df = m_df[m_df.index == groups_combination['test']]
