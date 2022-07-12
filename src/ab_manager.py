@@ -1,8 +1,6 @@
 import pandas as pd
 import numpy as np
 
-from statsmodels.stats.multitest import multipletests
-
 from IPython.display import display
 from IPython.core.display import Markdown
 
@@ -20,6 +18,7 @@ from ab_consts import UPLIFT_FORMAT
 from ab_hypothesis_manager import ABHypothesisManager
 from aggregation import Aggregation
 from ab_report import ABReport
+from charts.distribution_chart import DistributionChart
 from charts.pvalue_chart import PValueChart
 from charts.period_chart import PeriodChart
 from metrics import Metrics
@@ -257,6 +256,15 @@ class ABManager:
                     hue_col=self.abgroup_col,
                     timeseries_col=self.timeseries_col
                 ).draw()
+
+                if continuous_measure_col is not None:
+                    DistributionChart(
+                        metrics.copy(),
+                        hue_col=self.abgroup_col,
+                        outliers=outliers,
+                        outliers_quantile=outliers_quantile,
+                        outliers_quantile_min_value=outliers_quantile_min_value
+                    ).draw()
 
                 if h is not None:
                     PValueChart(
