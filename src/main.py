@@ -1,6 +1,6 @@
 from IPython.display import display
 
-from ab_manager import ABManager, _ALL_VALIDATORS
+from .ab_manager import ABManager, _ALL_VALIDATORS
 
 
 _managers = {}

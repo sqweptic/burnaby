@@ -6,9 +6,9 @@ import matplotlib.pyplot as plt
 from IPython.display import display
 from IPython.core.display import Markdown
 
-from charts.period_chart import PeriodChart
-from charts.base_chart import BaseChart
-from ab_consts import H_PVALUE_KEY
+from .period_chart import PeriodChart
+from .base_chart import BaseChart
+from burnaby.ab_consts import H_PVALUE_KEY
 
 
 class PValueChart(PeriodChart):

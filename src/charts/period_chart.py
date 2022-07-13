@@ -8,7 +8,7 @@ from matplotlib.ticker import PercentFormatter
 from IPython.display import display
 from IPython.core.display import Markdown
 
-from charts.base_chart import BaseChart
+from .base_chart import BaseChart
 
 
 class PeriodChart(BaseChart):

@@ -1,7 +1,7 @@
 from IPython.core.display import Markdown, display
 import numpy as np
 
-from metrics import Metrics
+from .metrics import Metrics
 
 _USE_WHOLE_DATA_KEYWORDS = [
     '*',

@@ -3,8 +3,8 @@ import pandas as pd
 from IPython.display import display
 from IPython.core.display import Markdown
 
-from ab_consts import R_AGGREGATION_COL
-from ab_consts import METRIC_COL_NAME
+from .ab_consts import R_AGGREGATION_COL
+from .ab_consts import METRIC_COL_NAME
 
 
 REPORTS_BOTTOM_MARGIN = 3

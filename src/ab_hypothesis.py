@@ -6,15 +6,15 @@ from IPython.display import display
 from scipy.stats import ttest_ind
 from statsmodels.stats.proportion import proportions_chisquare
 
-from ab_consts import STAT_TEST_CHISQUARE
-from ab_consts import STAT_TEST_TTEST
-from ab_consts import STAT_TEST_TTEST_WELSH
-from ab_consts import DEFAULT_SIGNIFICANCE_LEVEL
-from ab_consts import H_CONTROL_GROUP_KEY
-from ab_consts import H_PVALUE_KEY
-from ab_consts import H_SIGNIFICANCE_KEY
-from ab_consts import H_SIGNIFICANCE_LEVEL_KEY
-from ab_consts import H_TEST_GROUP_KEY
+from .ab_consts import STAT_TEST_CHISQUARE
+from .ab_consts import STAT_TEST_TTEST
+from .ab_consts import STAT_TEST_TTEST_WELSH
+from .ab_consts import DEFAULT_SIGNIFICANCE_LEVEL
+from .ab_consts import H_CONTROL_GROUP_KEY
+from .ab_consts import H_PVALUE_KEY
+from .ab_consts import H_SIGNIFICANCE_KEY
+from .ab_consts import H_SIGNIFICANCE_LEVEL_KEY
+from .ab_consts import H_TEST_GROUP_KEY
 
 
 class ABHypothesis:

@@ -5,12 +5,12 @@ import pandas as pd
 
 from IPython.display import display
 
-from ab_consts import METRIC_COL_NAME
-from ab_consts import UPLIFT_FORMAT
-from ab_consts import PROPORTION_FORMAT
-from ab_consts import CONTINUOUS_MEASURE_FORMAT
-from ab_consts import OUTLIERS_GROUPS_TYPE
-from ab_consts import OUTLIERS_METRICS_DATA_TYPE
+from .ab_consts import METRIC_COL_NAME
+from .ab_consts import UPLIFT_FORMAT
+from .ab_consts import PROPORTION_FORMAT
+from .ab_consts import CONTINUOUS_MEASURE_FORMAT
+from .ab_consts import OUTLIERS_GROUPS_TYPE
+from .ab_consts import OUTLIERS_METRICS_DATA_TYPE
 
 
 QUANTILE_COL_NAME = '_quantile'

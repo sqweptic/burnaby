@@ -6,11 +6,11 @@ from IPython.display import display
 
 from statsmodels.stats.multitest import multipletests
 
-from ab_consts import DEFAULT_SIGNIFICANCE_LEVEL
-from ab_consts import H_PVALUE_KEY
-from ab_consts import METRIC_COL_NAME
-from ab_consts import H_SIGNIFICANCE_KEY
-from ab_consts import H_SIGNIFICANCE_LEVEL_KEY
+from .ab_consts import DEFAULT_SIGNIFICANCE_LEVEL
+from .ab_consts import H_PVALUE_KEY
+from .ab_consts import METRIC_COL_NAME
+from .ab_consts import H_SIGNIFICANCE_KEY
+from .ab_consts import H_SIGNIFICANCE_LEVEL_KEY
 
 
 _CORRECTION_PREFIX = 'corrected_'

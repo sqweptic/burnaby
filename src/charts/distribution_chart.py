@@ -11,9 +11,9 @@ import matplotlib.pyplot as plt
 from IPython.display import display
 from IPython.core.display import Markdown
 
-from charts.base_chart import BaseChart
-from ab_consts import OUTLIERS_GROUPS_TYPE
-from ab_consts import OUTLIERS_METRICS_DATA_TYPE
+from .base_chart import BaseChart
+from burnaby.ab_consts import OUTLIERS_GROUPS_TYPE
+from burnaby.ab_consts import OUTLIERS_METRICS_DATA_TYPE
 
 
 class DistributionChart(BaseChart):
