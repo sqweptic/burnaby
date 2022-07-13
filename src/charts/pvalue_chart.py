@@ -30,7 +30,7 @@ class PValueChart(PeriodChart):
         start_dt = m_df[self.timeseries_col].min()
         uniq_dts = sorted(m_df[self.timeseries_col].unique())
 
-        for dt in uniq_dts[1:]:
+        for dt in uniq_dts:
             yield start_dt, dt
 
     def prepare(self):
@@ -39,8 +39,10 @@ class PValueChart(PeriodChart):
 
         r = None
         for period_start, period_end in self.get_periods(m_df):
+            self.metrics.calc()
+
             self.metrics.calc(
-                mask= (m_df[self.timeseries_col] >= period_start)
+                mask=(m_df[self.timeseries_col] >= period_start)
                     & (m_df[self.timeseries_col] <= period_end)
             )
 

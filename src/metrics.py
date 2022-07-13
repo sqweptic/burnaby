@@ -1,6 +1,7 @@
 from copy import copy
 
 import numpy as np
+import pandas as pd
 
 from IPython.display import display
 
@@ -8,6 +9,11 @@ from ab_consts import METRIC_COL_NAME
 from ab_consts import UPLIFT_FORMAT
 from ab_consts import PROPORTION_FORMAT
 from ab_consts import CONTINUOUS_MEASURE_FORMAT
+from ab_consts import OUTLIERS_GROUPS_TYPE
+from ab_consts import OUTLIERS_METRICS_DATA_TYPE
+
+
+QUANTILE_COL_NAME = '_quantile'
 
 
 def uniq_id_proportion(x):
@@ -23,6 +29,9 @@ class Metrics:
         data_df,
         mask=None,
         grouping=None,
+        outliers=None,
+        outliers_quantile=None,
+        outliers_quantile_min_value=None,
         format_str=None,
         relation_format_str=None,
         relation_value=None,
@@ -50,6 +59,9 @@ class Metrics:
         self.denominator_col = denominator_col
         self.na_is_zero = na_is_zero
         self.is_uniq_id_proportions = is_uniq_id_proportions
+        self.outliers=outliers
+        self.outliers_quantile=outliers_quantile
+        self.outliers_quantile_min_value = outliers_quantile_min_value
 
         if is_uniq_id_proportions:
             self.proportion_func = uniq_id_proportion
@@ -70,6 +82,11 @@ class Metrics:
 
     def get_name(self):
         return self.name
+
+    def get_output_col(self):
+        if self.continuous_measure_col is not None:
+            return self.continuous_measure_col
+        return (self.nominator_col, self.denominator_col)
 
     def get_col(self):
         return METRIC_COL_NAME
@@ -95,6 +112,9 @@ class Metrics:
             data_df=self.data_df,
             grouping=copy(self.grouping),
             format_str=self.format_str,
+            outliers=self.outliers,
+            outliers_quantile=self.outliers_quantile,
+            outliers_quantile_min_value=self.outliers_quantile_min_value,
             relation_format_str=self.relation_format_str,
             relation_value=self.relation_value,
             continuous_measure_col=self.continuous_measure_col,
@@ -140,10 +160,74 @@ class Metrics:
 
         return interm_df
 
+    def get_quantile_df(self, m_df, outliers, grouping=None):
+        grp = self._get_grouping(grouping, False)
+
+        if outliers == OUTLIERS_GROUPS_TYPE:
+            m_grouped_df = m_df.groupby(grp)
+
+            grp_q_df = m_grouped_df.quantile(self.outliers_quantile)
+            grp_q_df.columns = [QUANTILE_COL_NAME]
+
+            return grp_q_df
+        elif outliers == OUTLIERS_METRICS_DATA_TYPE:
+            grp_q_index = m_df.reset_index()[grp].drop_duplicates()
+
+            if len(grp) > 1:
+                df_index = pd.MultiIndex.from_arrays(
+                    grp_q_index.T.values,
+                    names=grp
+                )
+            else:
+                df_index = pd.Index(
+                    grp_q_index.T.values[0],
+                    name=grp[0]
+                )
+
+            return pd.DataFrame(
+                [
+                    m_df[self.continuous_measure_col] \
+                        .quantile(self.outliers_quantile)
+                ] * len(grp_q_index),
+                columns=[QUANTILE_COL_NAME],
+                index=df_index
+            )
+
+        else:
+            raise Exception('wrong outliers removing type')
+
+    def remove_outliers(self, grouping, m_df):
+        if self.outliers is None:
+            return m_df
+
+        if self.outliers_quantile_min_value is not None:
+            no_min_value_m_df = m_df[
+                m_df[self.continuous_measure_col] >
+                    self.outliers_quantile_min_value
+            ]
+        else:
+            no_min_value_m_df = m_df
+
+        quantile_df = self.get_quantile_df(
+            no_min_value_m_df,
+            outliers=self.outliers,
+            grouping=grouping
+        )
+
+        m_joined_q_df = m_df.join(quantile_df)
+
+        no_outliers_m_df = m_joined_q_df[
+            m_joined_q_df[self.continuous_measure_col] <= \
+                m_joined_q_df[QUANTILE_COL_NAME]
+        ]
+
+        return no_outliers_m_df.drop(columns=quantile_df.columns)
+
     def calc(
         self,
         mask=None,
-        grouping=None
+        grouping=None,
+        remove_outliers=True
     ):
         interm_df = self.data_df
 
@@ -167,6 +251,9 @@ class Metrics:
         else:
             output_df = interm_df[[self.continuous_measure_col]].sum()
 
+            if remove_outliers:
+                output_df = self.remove_outliers(grouping, output_df)
+
             metrics_df = output_df
 
             metrics_df.index = metrics_df.index.droplevel(
@@ -174,6 +261,7 @@ class Metrics:
             )
 
             metrics_df = metrics_df.reset_index()
+
             metrics_df = self.group_data(grouping, metrics_df, False).sum()
 
             columns = []
@@ -184,14 +272,13 @@ class Metrics:
                     columns.append(col)
             metrics_df.columns = columns
 
-
         self.metrics_df = metrics_df
         self.output_df = output_df
 
         return output_df
 
-    def set_output(self, output):
-        self.output_df = output
+    def set_output(self, output_df):
+        self.output_df = output_df
 
     def get_output(self):
         return self.output_df

@@ -29,3 +29,6 @@ H_SIGNIFICANCE_KEY = 'significance'
 H_SIGNIFICANCE_LEVEL_KEY = 'sig_level'
 
 R_AGGREGATION_COL = '_aggregation'
+
+OUTLIERS_GROUPS_TYPE = 'groups'
+OUTLIERS_METRICS_DATA_TYPE = 'metrics data'
