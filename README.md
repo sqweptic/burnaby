@@ -13,7 +13,7 @@ Made by data analysts for data analysts who conduct a/b tests a lot and don't ha
 * Print report for a/b tests
 * Export report to Excel format
 
-Please see an example jupyter notebook - example.ipynb for demonstration.
+Please see a jupyter notebook in Examples folder -> example.ipynb for demonstration.
 
 ## Installation
 
