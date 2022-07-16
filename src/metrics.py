@@ -3,8 +3,6 @@ from copy import copy
 import numpy as np
 import pandas as pd
 
-from IPython.display import display
-
 from .ab_consts import METRIC_COL_NAME
 from .ab_consts import UPLIFT_FORMAT
 from .ab_consts import PROPORTION_FORMAT

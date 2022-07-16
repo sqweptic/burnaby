@@ -1,9 +1,6 @@
 import itertools
-from turtle import title
 
 import numpy as np
-from numpy.core.fromnumeric import squeeze
-import pandas as pd
 
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -13,7 +10,6 @@ from IPython.core.display import Markdown
 
 from .base_chart import BaseChart
 from burnaby.ab_consts import OUTLIERS_GROUPS_TYPE
-from burnaby.ab_consts import OUTLIERS_METRICS_DATA_TYPE
 
 
 class DistributionChart(BaseChart):

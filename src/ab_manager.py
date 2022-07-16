@@ -5,16 +5,8 @@ from IPython.display import display
 from IPython.core.display import Markdown
 
 from .ab_hypothesis import ABHypothesis
-from .ab_consts import METRIC_COL_NAME
 from .ab_consts import DEFAULT_GROUP_NAMES
-from .ab_consts import H_CONTROL_GROUP_KEY
 from .ab_consts import H_PVALUE_KEY
-from .ab_consts import H_SIGNIFICANCE_KEY
-from .ab_consts import H_TEST_GROUP_KEY
-from .ab_consts import DEFAULT_SIGNIFICANCE_LEVEL
-from .ab_consts import H_KIND_CONTINUOUS
-from .ab_consts import PROPORTION_FORMAT
-from .ab_consts import UPLIFT_FORMAT
 from .ab_hypothesis_manager import ABHypothesisManager
 from .aggregation import Aggregation
 from .ab_report import ABReport

@@ -1,9 +1,6 @@
-import imp
 import pandas as pd
 
-import seaborn as sns
 import matplotlib.pyplot as plt
-from matplotlib.ticker import PercentFormatter
 
 from IPython.display import display
 from IPython.core.display import Markdown

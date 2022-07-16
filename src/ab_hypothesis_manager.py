@@ -2,8 +2,6 @@ from collections import OrderedDict
 
 import numpy as np
 
-from IPython.display import display
-
 from statsmodels.stats.multitest import multipletests
 
 from .ab_consts import DEFAULT_SIGNIFICANCE_LEVEL
