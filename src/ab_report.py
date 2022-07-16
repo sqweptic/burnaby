@@ -46,7 +46,7 @@ class ABReport:
                     )
                 )
                 hcorr_pvalues_df.columns = m_df.columns
-                m_df = m_df.append(hcorr_pvalues_df)
+                m_df = pd.concat([m_df, hcorr_pvalues_df])
 
                 hacceptance_df = self.ab_hm.get_hypothesis_acceptance(
                     agg,
@@ -60,13 +60,13 @@ class ABReport:
                     )
                 )
                 hacceptance_df.columns = m_df.columns
-                m_df = m_df.append(hacceptance_df)
+                m_df = pd.concat([m_df, hacceptance_df])
                 m_df.columns = [metrics.get_name()]
 
-                agg_df = agg_df.append(m_df.T)
+                agg_df = pd.concat([agg_df, m_df.T])
 
                 agg_df[R_AGGREGATION_COL] = agg.get_full_name()
-            self.report_df = self.report_df.append(agg_df)
+            self.report_df = pd.concat([self.report_df, agg_df])
 
     def prepare_multiple_hypothesis_report(self):
         if self.report_mh_df is not None:
@@ -101,10 +101,11 @@ class ABReport:
                     names=[METRIC_COL_NAME, '']
                 )
 
-                agg_df = agg_df.append(corrected_h_df)
+                agg_df = pd.concat([agg_df, corrected_h_df])
 
                 agg_df[R_AGGREGATION_COL] = agg.get_full_name()
-            self.report_mh_df = self.report_mh_df.append(agg_df)
+
+            self.report_mh_df = pd.concat([self.report_mh_df, agg_df])
 
     def display(self):
         self.prepare_report()

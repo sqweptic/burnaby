@@ -1,6 +1,7 @@
 from collections import OrderedDict
 
 import numpy as np
+import pandas as pd
 
 from statsmodels.stats.multitest import multipletests
 
@@ -53,7 +54,7 @@ class ABHypothesisManager:
                 if with_correction_df is None:
                     with_correction_df = h
                 else:
-                    with_correction_df = with_correction_df.append(h)
+                    with_correction_df = pd.concat([with_correction_df, h])
 
         _, corrected_pvalues_list, _, _ = multipletests(
             with_correction_df[H_PVALUE_KEY],

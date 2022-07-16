@@ -1,5 +1,7 @@
 import matplotlib.pyplot as plt
 
+import pandas as pd
+
 from IPython.display import display
 from IPython.core.display import Markdown
 
@@ -51,7 +53,7 @@ class PValueChart(PeriodChart):
             if r is None:
                 r = pv_df
             else:
-                r = r.append(pv_df)
+                r = pd.concat([r, pv_df])
 
         r.index.name = self.hue_col
         r.reset_index(inplace=True)

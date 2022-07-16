@@ -1,5 +1,7 @@
 from copy import copy
 
+from IPython.core.display_functions import display
+
 import numpy as np
 import pandas as pd
 
@@ -312,6 +314,6 @@ class Metrics:
                     rel_output_df = rel_output_df\
                         .applymap(self.relation_format_str.format)
 
-            foutput_dt = foutput_dt.append(rel_output_df)
+            foutput_dt = pd.concat([foutput_dt, rel_output_df])
 
         return foutput_dt

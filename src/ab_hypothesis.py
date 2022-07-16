@@ -83,7 +83,8 @@ class ABHypothesis:
                         test_group_name=groups_combination['test']
                     )
                 )
-                h_df = h_df.append(self._get_empty_data(combination_name))
+
+                h_df = pd.concat([h_df, self._get_empty_data(combination_name)])
                 continue
 
             test_df = m_df[m_df.index == groups_combination['test']]
@@ -149,7 +150,10 @@ class ABHypothesis:
                         combination_name
                     )
 
-                    h_df = h_df.append(self._get_empty_data(combination_name))
+                    h_df = pd.concat([
+                        h_df,
+                        self._get_empty_data(combination_name)
+                    ])
 
         if save_testing:
             self.h_df = h_df

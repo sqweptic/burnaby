@@ -24,6 +24,7 @@ setup(
         'matplotlib==3.4.2',
         'notebook==6.4.0',
         'numpy==1.21.0',
+        'openpyxl==3.0.10',
         'pandas==1.2.5',
         'scipy==1.7.0',
         'seaborn==0.11.1',
